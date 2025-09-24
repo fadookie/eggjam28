@@ -1,6 +1,6 @@
-import 'p5';
+import type * as p5 from "p5";
 
-let music;
+let music: p5.SoundFile;
 
 function preload() {
   soundFormats('ogg');

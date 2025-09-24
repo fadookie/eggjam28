@@ -3,14 +3,14 @@
   "compilerOptions": {
     // File Layout
     // "rootDir": "./src",
-    // "outDir": "./dist",
+    "outDir": "./dist",
 
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
     "module": "none",
     "target": "es2015",
-    "types": [],
-    "typeRoots": ["@types/p5"],
+    "types": ["p5/global"],
+    "typeRoots": [/*"@types/p5"*/],
     "lib": [
       "dom",
       "dom.iterable",
