@@ -1,0 +1,16 @@
+{
+  "name": "tripleclickjam25",
+  "version": "1.0.0",
+  "description": "",
+  "main": "p5.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "tsc": "tsc"
+  },
+  "author": "",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@types/p5": "^1.7.6",
+    "typescript": "^5.9.2"
+  }
+}
