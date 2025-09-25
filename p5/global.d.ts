@@ -1,0 +1,1 @@
+declare function fooTest(a: string): string;

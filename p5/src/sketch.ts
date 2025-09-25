@@ -1,6 +1,8 @@
 import type * as p5 from "p5";
 
+const backgroundColor = 90;
 let music: p5.SoundFile;
+let amplitude: p5.Amplitude;
 let hasStarted = false;
 
 function preload() {
@@ -10,13 +12,21 @@ function preload() {
 
 function setup() {
   createCanvas(400, 400);
-  background(90);
+  background(backgroundColor);
+  rectMode(CENTER);
+  textAlign(CENTER);
   stroke('red');
+  fill('blue');
   ellipse(0, 0, 50, 50);
+  text('Click to begin', width / 2, height / 2);
+
+  amplitude = new p5.Amplitude();
 }
 
-// function draw() {
-// }
+function draw() {
+  if (!hasStarted) return;
+  background(backgroundColor);
+}
 
 function mouseClicked() {
   // First click enables audio context

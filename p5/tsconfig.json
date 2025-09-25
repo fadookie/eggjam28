@@ -9,7 +9,7 @@
     // See also https://aka.ms/tsconfig/module
     "module": "preserve",
     "target": "es2015",
-    "types": ["p5/global"],
+    "types": ["p5/global", "./global.d.ts"],
     "lib": [
       "dom",
       "dom.iterable",
