@@ -26,6 +26,7 @@ function setup() {
 function draw() {
   if (!hasStarted) return;
   background(backgroundColor);
+  console.log('amp:', amplitude.getLevel());
 }
 
 function mouseClicked() {
