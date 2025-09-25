@@ -7,10 +7,9 @@
 
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
-    "module": "none",
+    "module": "preserve",
     "target": "es2015",
     "types": ["p5/global"],
-    "typeRoots": [/*"@types/p5"*/],
     "lib": [
       "dom",
       "dom.iterable",
@@ -20,9 +19,9 @@
     // and npm install -D @types/node
 
     // Other Outputs
-    "sourceMap": true,
-    "declaration": true,
-    "declarationMap": true,
+    "sourceMap": false,
+    "declaration": false,
+    "declarationMap": false,
 
     // Stricter Typechecking Options
     "noUncheckedIndexedAccess": true,
@@ -47,5 +46,6 @@
 
     "allowJs": true,
     "esModuleInterop": true,
-  }
+  },
+  "include": ["src"]
 }
