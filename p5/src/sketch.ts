@@ -4,6 +4,7 @@ const backgroundColor = '#4DA2AF';
 const darkBlueColor = '#28306A';
 const creamColor = '#FBF2B2';
 const redColor = '#D13938';
+const defaultStrokeWeight = 15;
 
 let music: p5.SoundFile;
 let amplitude: p5.Amplitude;
@@ -16,12 +17,13 @@ function preload() {
 }
 
 function setup() {
-  createCanvas(400, 400);
+  createCanvas(800, 800);
   background(backgroundColor);
   rectMode(CENTER);
+  ellipseMode(RADIUS);
   textAlign(CENTER);
   stroke(creamColor);
-  strokeWeight(3);
+  strokeWeight(defaultStrokeWeight);
   fill(darkBlueColor);
   text('Click to begin', width / 2, height / 2);
 
@@ -37,12 +39,6 @@ function draw() {
   if (!hasStarted) return;
   background(backgroundColor);
 
-  // draw amplitude ellipse
-  const volumeLevel = amplitude.getLevel();
-  const ellipseSize = volumeLevel * 100;
-  ellipse(width / 2, height / 2, ellipseSize, ellipseSize);
-  console.log('amp:', volumeLevel);
-
   // draw fft
   push();
   const fftGraphHeight = height / 2;
@@ -51,12 +47,30 @@ function draw() {
   translate(0, fftGraphHeight);
   rectMode(CORNER);
   noStroke();
-  fill(creamColor);
+  fill(redColor);
   for (let i = 0; i< linAverages.length; i++){
     let x = map(i, 0, linAverages.length, 0, width);
     let h = -fftGraphHeight + map(linAverages[i], 0, 255, fftGraphHeight, 0);
     rect(x, fftGraphHeight, width / linAverages.length, h );
   }
+  pop();
+
+  // draw amplitude circles
+  push();
+  const volumeLevel = amplitude.getLevel() + 2;
+  // const volumeLevel = 0.75;
+  const smallCircleSize = volumeLevel * 100;
+  const mediumCircleSize = (volumeLevel * 100) + defaultStrokeWeight;
+  const largeCircleSize = (volumeLevel * 100) + defaultStrokeWeight * 2;
+
+  noFill();
+  stroke(creamColor);
+  circle(width / 2, height / 2, largeCircleSize);
+  stroke(redColor);
+  circle(width / 2, height / 2, mediumCircleSize);
+  stroke(darkBlueColor);
+  circle(width / 2, height / 2, smallCircleSize);
+  // console.log('amp:', volumeLevel);
   pop();
 }
 
