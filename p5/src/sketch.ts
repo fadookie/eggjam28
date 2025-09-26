@@ -6,6 +6,16 @@ const creamColor = '#FBF2B2';
 const redColor = '#D13938';
 const defaultStrokeWeight = 15;
 
+const musicEvents = [
+  1.090,
+  1.298,
+  1.532,
+  97.608,
+  97.817,
+  98.050,
+] as const;
+let musicEventIdx = 0;
+
 let music: p5.SoundFile;
 let amplitude: p5.Amplitude;
 let fft: p5.FFT;
@@ -18,14 +28,18 @@ function preload() {
 
 function setup() {
   createCanvas(800, 800);
-  background(backgroundColor);
   rectMode(CENTER);
   ellipseMode(RADIUS);
   textAlign(CENTER);
   stroke(creamColor);
-  strokeWeight(defaultStrokeWeight);
   fill(darkBlueColor);
+
+  // Draw splash screen
+  background(backgroundColor);
+  strokeWeight(3);
   text('Click to begin', width / 2, height / 2);
+
+  strokeWeight(defaultStrokeWeight);
 
   //@ts-expect-error
   amplitude = new p5.Amplitude();
@@ -71,6 +85,22 @@ function draw() {
   stroke(darkBlueColor);
   circle(width / 2, height / 2, smallCircleSize);
   // console.log('amp:', volumeLevel);
+  pop();
+
+  handleMusicTrack();
+}
+
+function handleMusicTrack() {
+  if (musicEventIdx > musicEvents.length) return;
+
+  // draw music track and stuff
+  push();
+  const currentTimeS = music.currentTime();
+  const nextEventTimeS = musicEvents[musicEventIdx];
+  if (nextEventTimeS && currentTimeS >= nextEventTimeS) {
+    console.log('NEXT EVENT FIRE', { currentTimeS, nextEventTimeS });
+    ++musicEventIdx;
+  }
   pop();
 }
 
