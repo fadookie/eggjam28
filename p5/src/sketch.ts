@@ -13,7 +13,7 @@ let hasStarted = false;
 
 function preload() {
   soundFormats('ogg');
-  music = loadSound('../tripleclickjam25/tripleClickTheme');
+  music = loadSound('../assets/tripleClickTheme');
 }
 
 function setup() {
