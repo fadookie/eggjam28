@@ -6,6 +6,9 @@ const creamColor = '#FBF2B2';
 const redColor = '#D13938';
 const defaultStrokeWeight = 15;
 
+const bpm = 110;
+const bps = bpm / 60;
+const beatsPerBar = 4;
 const musicEvents = [
   1.090,
   1.298,
@@ -16,6 +19,7 @@ const musicEvents = [
   98.050,
 ] as const;
 
+let lastBeat = -1;
 let musicEventIdx = 0;
 
 let music: p5.SoundFile;
@@ -105,8 +109,19 @@ function handleMusicTrack() {
   if (musicEventIdx > musicEvents.length) return;
 
   push();
-  // process events that need to fire
+  // calculate current time and beats
+  // TODO: This isn't syncing up as well as it should especially towards the end of the song
   const currentTimeS = music.currentTime();
+  const beat = Math.floor((currentTimeS / bps) * beatsPerBar);
+  const beatInBar = (beat % beatsPerBar) + 1;
+
+  // Check if the beat has changed
+  if (lastBeat != beat) {
+    console.log('beatInBar:', beatInBar, 'beat:', beat);
+    lastBeat = beat;
+  }
+
+  // Check if the next musicEvent has fired
   const nextEventTimeS = musicEvents[musicEventIdx];
   if (nextEventTimeS && currentTimeS >= nextEventTimeS) {
     console.log('NEXT EVENT FIRE', { currentTimeS, nextEventTimeS });
@@ -161,5 +176,11 @@ function keyPressed() {
     // reset sketch
     console.log('reset sketch');
     resetSketch();
+  } else if (key == 'p') {
+    if (music.isPaused()) {
+      music.play();
+    } else {
+      music.pause();
+    }
   }
 }
