@@ -113,11 +113,12 @@ function handleMusicTrack() {
   const currentTimeS = music.currentTime();
   const currentTimeM = currentTimeS / 60;
   const beat = Math.floor(currentTimeM * bpm);
+  const measure = Math.floor(beat / beatsPerBar);
   const beatInBar = (beat % beatsPerBar) + 1;
 
   // Check if the beat has changed
   if (lastBeat != beat) {
-    console.log({ beatInBar, beat, currentTimeS });
+    console.log({ measure, beatInBar, beat, currentTimeS });
     lastBeat = beat;
   }
 
@@ -130,6 +131,13 @@ function handleMusicTrack() {
 
   // draw music track
   noStroke();
+
+  // Draw measure and beat counter
+  push();
+  textSize(20);
+  fill(creamColor);
+  text(`${measure} | ${beatInBar}`, width / 2, height / 2);
+  pop();
 
   translate(50, 50);
 
