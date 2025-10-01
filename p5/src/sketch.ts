@@ -160,21 +160,26 @@ function handleMusicTrack() {
       return [thresholdsS[3], thresholdMessages[3]];
     };
 
-    const [distance, threshold, thresholdMessage] = (() => {
+    type DistanceResult = [number, keyof typeof thresholdsS, typeof thresholdMessages[number]]
+    const [distance, threshold, thresholdMessage] = ((): DistanceResult  => {
+      const getResult = (distance: number): DistanceResult => {
+        return [distance, ...getThreshold(distance)];
+      };
       if (prevEventDistance !== undefined && nextEventDistance !== undefined) {
         if (Math.abs(prevEventDistance) < Math.abs(nextEventDistance)) {
-          return getThreshold(prevEventDistance);
+          return getResult(prevEventDistance);
         } else {
-          return getThreshold(nextEventDistance);
+          return getResult(nextEventDistance);
         }
       } else if (prevEventDistance !== undefined) {
-          return getThreshold(prevEventDistance);
+          return getResult(prevEventDistance);
       } else if (nextEventDistance !== undefined) {
-          return getThreshold(nextEventDistance);
+          return getResult(nextEventDistance);
       } 
+      throw new Error('No threshold found');
     })();
 
-    console.log({ threshold, thr});
+    console.log({ distance, threshold, thresholdMessage });
   }
   mouseWasPressedLastFrame = mouseIsPressed;
 
