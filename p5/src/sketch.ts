@@ -7,8 +7,8 @@ const redColor = '#D13938';
 const defaultStrokeWeight = 15;
 
 const bpm = 110;
-const bps = bpm / 60;
 const beatsPerBar = 4;
+const musicDebugCueTimeS = 0; //91; // TODO: remove later start time for debugging
 const musicEvents = [
   1.090,
   1.298,
@@ -110,14 +110,14 @@ function handleMusicTrack() {
 
   push();
   // calculate current time and beats
-  // TODO: This isn't syncing up as well as it should especially towards the end of the song
   const currentTimeS = music.currentTime();
-  const beat = Math.floor((currentTimeS / bps) * beatsPerBar);
+  const currentTimeM = currentTimeS / 60;
+  const beat = Math.floor(currentTimeM * bpm);
   const beatInBar = (beat % beatsPerBar) + 1;
 
   // Check if the beat has changed
   if (lastBeat != beat) {
-    console.log('beatInBar:', beatInBar, 'beat:', beat);
+    console.log({ beatInBar, beat, currentTimeS });
     lastBeat = beat;
   }
 
@@ -164,7 +164,7 @@ function mouseClicked() {
   if (!hasStarted) {
     hasStarted = true;
     userStartAudio();
-    music.play();
+    music.play(undefined, undefined, undefined, musicDebugCueTimeS);
     console.log('first click');
     return;
   }
@@ -178,7 +178,7 @@ function keyPressed() {
     resetSketch();
   } else if (key == 'p') {
     if (music.isPaused()) {
-      music.play();
+      music.play(undefined, undefined, undefined, musicDebugCueTimeS);
     } else {
       music.pause();
     }
