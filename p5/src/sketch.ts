@@ -26,6 +26,7 @@ let music: p5.SoundFile;
 let amplitude: p5.Amplitude;
 let fft: p5.FFT;
 let hasStarted = false;
+let mouseWasPressedLastFrame = false;
 
 function preload() {
   soundFormats('ogg');
@@ -105,6 +106,11 @@ function draw() {
   handleMusicTrack();
 }
 
+function mapOptional<T>(x: T | undefined, f: (arg0: T) => T): T | undefined {
+  if (x === undefined) return undefined;
+  return f(x);
+}
+
 function handleMusicTrack() {
   if (musicEventIdx > musicEvents.length) return;
 
@@ -118,16 +124,59 @@ function handleMusicTrack() {
 
   // Check if the beat has changed
   if (lastBeat != beat) {
-    console.log({ measure, beatInBar, beat, currentTimeS });
+    // console.log({ measure, beatInBar, beat, currentTimeS });
     lastBeat = beat;
   }
 
   // Check if the next musicEvent has fired
   const nextEventTimeS = musicEvents[musicEventIdx];
   if (nextEventTimeS && currentTimeS >= nextEventTimeS) {
-    console.log('NEXT EVENT FIRE', { currentTimeS, nextEventTimeS });
+    // console.log('NEXT EVENT FIRE', { currentTimeS, nextEventTimeS });
     ++musicEventIdx;
   }
+
+  // process input
+  if (mouseIsPressed && !mouseWasPressedLastFrame) {
+    console.log("mouse press detected");
+    // find nearest previous and next events
+    const prevEvent = musicEvents.find(evt => evt < currentTimeS);
+    const nextEvent = musicEvents.find(evt => evt >= currentTimeS);
+    const getDistance = (evt: number): number => currentTimeS - evt;
+    const prevEventDistance = mapOptional(prevEvent, getDistance);
+    const nextEventDistance = mapOptional(nextEvent, getDistance);
+
+    const thresholdsS = [0.1 /*perfect*/, 0.25 /*good*/, 0.5 /*OK*/, Number.POSITIVE_INFINITY /*Miss*/] as const;
+    const thresholdMessages = ['Perfect!', 'Good!', 'OK', 'Miss'] as const;
+    const getThreshold = (distanceS: number): [keyof typeof thresholdsS, typeof thresholdMessages[number]] => {
+      for(let i = 0; i < thresholdsS.length; ++i) {
+        const threshold = thresholdsS[i];
+        const thresholdMessage = thresholdMessages[i]; 
+        if (threshold !== undefined &&  thresholdMessage !== undefined && distanceS < threshold) {
+          return [threshold, thresholdMessage];
+        }
+      }
+
+      // No best threshold found, it's a miss
+      return [thresholdsS[3], thresholdMessages[3]];
+    };
+
+    const [distance, threshold, thresholdMessage] = (() => {
+      if (prevEventDistance !== undefined && nextEventDistance !== undefined) {
+        if (Math.abs(prevEventDistance) < Math.abs(nextEventDistance)) {
+          return getThreshold(prevEventDistance);
+        } else {
+          return getThreshold(nextEventDistance);
+        }
+      } else if (prevEventDistance !== undefined) {
+          return getThreshold(prevEventDistance);
+      } else if (nextEventDistance !== undefined) {
+          return getThreshold(nextEventDistance);
+      } 
+    })();
+
+    console.log({ threshold, thr});
+  }
+  mouseWasPressedLastFrame = mouseIsPressed;
 
   // draw music track
   noStroke();
@@ -178,7 +227,7 @@ function mouseClicked() {
     console.log('first click');
     return;
   }
-  console.log('subsequent click');
+  // handle subsequent click here if needed. game clicks are handled in handleMusicTrack function
 }
 
 function keyPressed() {
