@@ -132,11 +132,13 @@ function handleMusicTrack() {
   // draw music track
   noStroke();
 
-  // Draw measure and beat counter
+  // Draw measure/beat/time counter HUD
   push();
   textSize(20);
   fill(creamColor);
-  text(`${measure} | ${beatInBar}`, width / 2, height / 2);
+  const timeRemainingS = Math.floor(music.duration() - currentTimeS);
+  const hud = `${measure}.${beatInBar} T-${timeRemainingS}s`;
+  text(hud, width / 2, height / 2);
   pop();
 
   translate(50, 50);
