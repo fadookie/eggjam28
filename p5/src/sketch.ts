@@ -19,6 +19,14 @@ const musicEvents = [
   98.050,
 ] as const;
 
+type MusicEventRuntimeData = {
+  musicEventIndex: keyof typeof musicEvents,
+  musicEventTimeS: typeof musicEvents[number],
+  wasPressed: boolean,
+};
+
+let musicEventRuntimeData: MusicEventRuntimeData[];
+
 let lastBeat = -1;
 let musicEventIdx = 0;
 
@@ -48,6 +56,13 @@ function setup() {
 
 function resetSketch() {
   hasStarted = false;
+
+  // Make music event runtime data
+  musicEventRuntimeData = musicEvents.map((musicEventTimeS, musicEventIndex) => ({
+    musicEventTimeS,
+    musicEventIndex,
+    wasPressed: false,
+  }));
 
   rectMode(CENTER);
   ellipseMode(RADIUS);
@@ -106,7 +121,7 @@ function draw() {
   handleMusicTrack();
 }
 
-function mapOptional<T>(x: T | undefined, f: (arg0: T) => T): T | undefined {
+function mapOptional<T, U>(x: T | undefined, f: (arg0: T) => U): U | undefined {
   if (x === undefined) return undefined;
   return f(x);
 }
@@ -137,49 +152,81 @@ function handleMusicTrack() {
 
   // process input
   if (mouseIsPressed && !mouseWasPressedLastFrame) {
-    console.log("mouse press detected");
+    // console.log("mouse press detected");
     // find nearest previous and next events
-    const prevEvent = musicEvents.find(evt => evt < currentTimeS);
-    const nextEvent = musicEvents.find(evt => evt >= currentTimeS);
-    const getDistance = (evt: number): number => currentTimeS - evt;
+    const prevEvent = musicEventRuntimeData.find(evt => evt.musicEventTimeS < currentTimeS);
+    const nextEvent = musicEventRuntimeData.find(evt => evt.musicEventTimeS >= currentTimeS);
+    const getDistance = (evt: MusicEventRuntimeData): number => currentTimeS - evt.musicEventTimeS;
     const prevEventDistance = mapOptional(prevEvent, getDistance);
     const nextEventDistance = mapOptional(nextEvent, getDistance);
 
-    const thresholdsS = [0.1 /*perfect*/, 0.25 /*good*/, 0.5 /*OK*/, Number.POSITIVE_INFINITY /*Miss*/] as const;
-    const thresholdMessages = ['Perfect!', 'Good!', 'OK', 'Miss'] as const;
-    const getThreshold = (distanceS: number): [keyof typeof thresholdsS, typeof thresholdMessages[number]] => {
+    const thresholdLabels = ['PERFECT', 'GREAT', 'GOOD', 'OK', 'MISS'] as const; 
+    type ThresholdLabel = typeof thresholdLabels[number];
+    const thresholdsS = [0.015 /*perfect*/, 0.03 /*great*/, 0.05 /*good*/, 0.01/*OK*/, Number.POSITIVE_INFINITY /*Miss*/] as const;
+    const thresholdMessages = ['Perfect!', 'Great!', 'Good!', 'OK', 'Miss'] as const;
+
+    const getThreshold = (distanceS: number): [ThresholdLabel, keyof typeof thresholdsS, typeof thresholdMessages[number]] => {
       for(let i = 0; i < thresholdsS.length; ++i) {
+        const thresholdLabel = thresholdLabels[i];
         const threshold = thresholdsS[i];
         const thresholdMessage = thresholdMessages[i]; 
-        if (threshold !== undefined &&  thresholdMessage !== undefined && distanceS < threshold) {
-          return [threshold, thresholdMessage];
+        if (thresholdLabel !== undefined && threshold !== undefined &&  thresholdMessage !== undefined && distanceS < threshold) {
+          return [thresholdLabel, threshold, thresholdMessage];
         }
       }
 
       // No best threshold found, it's a miss
-      return [thresholdsS[3], thresholdMessages[3]];
+      return [thresholdLabels[4], thresholdsS[4], thresholdMessages[4]];
     };
 
-    type DistanceResult = [number, keyof typeof thresholdsS, typeof thresholdMessages[number]]
-    const [distance, threshold, thresholdMessage] = ((): DistanceResult  => {
-      const getResult = (distance: number): DistanceResult => {
-        return [distance, ...getThreshold(distance)];
-      };
-      if (prevEventDistance !== undefined && nextEventDistance !== undefined) {
-        if (Math.abs(prevEventDistance) < Math.abs(nextEventDistance)) {
-          return getResult(prevEventDistance);
-        } else {
-          return getResult(nextEventDistance);
-        }
-      } else if (prevEventDistance !== undefined) {
-          return getResult(prevEventDistance);
-      } else if (nextEventDistance !== undefined) {
-          return getResult(nextEventDistance);
-      } 
-      throw new Error('No threshold found');
-    })();
-
-    console.log({ distance, threshold, thresholdMessage });
+    type DistanceResult = [number, ThresholdLabel, keyof typeof thresholdsS, typeof thresholdMessages[number]]
+    try {
+      const [distance, thresholdLabel, threshold, thresholdMessage] = ((): DistanceResult  => {
+        const getResult = (distance: number): DistanceResult => {
+          return [distance, ...getThreshold(distance)];
+        };
+        if (prevEvent !== undefined
+          && !prevEvent.wasPressed
+          && prevEventDistance !== undefined
+          && nextEvent !== undefined
+          && !nextEvent.wasPressed
+          && nextEventDistance !== undefined) {
+          // Both previous and next events are candidates, use whichever is closer
+          if (Math.abs(prevEventDistance) < Math.abs(nextEventDistance)) {
+            console.log('1');
+            const result = getResult(prevEventDistance);
+            if (result[1] !== 'MISS') {
+              prevEvent.wasPressed = true;
+            }
+            return result;
+          } else {
+            console.log('2');
+            const result = getResult(nextEventDistance);
+            if (result[1] !== 'MISS') {
+              nextEvent.wasPressed = true;
+            }
+            return result;
+          }
+        } else if (prevEvent !== undefined && !prevEvent.wasPressed && prevEventDistance !== undefined) {
+            console.log('3');
+          const result = getResult(prevEventDistance);
+          if (result[1] !== 'MISS') {
+            prevEvent.wasPressed = true;
+          }
+          return result;
+        } else if (nextEvent !== undefined && !nextEvent.wasPressed && nextEventDistance !== undefined) {
+            console.log('4');
+          const result = getResult(nextEventDistance);
+          if (result[1] !== 'MISS') {
+            nextEvent.wasPressed = true;
+          }
+          return result;
+        } 
+        throw new Error('No threshold found');
+      })();
+      console.log({ thresholdLabel, thresholdMessage, distance, threshold });
+    } catch {
+    }
   }
   mouseWasPressedLastFrame = mouseIsPressed;
 
