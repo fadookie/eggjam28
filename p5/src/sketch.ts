@@ -1,16 +1,18 @@
 import type * as p5 from "p5";
 
-const backgroundColor = '#4DA2AF';
+const backgroundColor = '#18A5B1';
 const darkBlueColor = '#28306A';
 const creamColor = '#FBF2B2';
 const redColor = '#D13938';
 const defaultStrokeWeight = 15;
-const musicTrack = 'clickTrack110BPM'; // 'tripleClickTheme'
+// const musicTrack = 'clickTrack110BPM';
+const musicTrack = 'tripleClickTheme';
 
 const bpm = 110;
 const beatsPerBar = 4;
 const musicDebugCueTimeS = 0; //91; // TODO: remove later start time for debugging
 const musicEvents = [
+  /*
   // Click track test events
   1.091,
   2.182,
@@ -21,8 +23,10 @@ const musicEvents = [
   4.909,
   5.455,
   6.000,
+  */
 
   /* Triple click events
+  */
   1.090,
   1.298,
   1.532,
@@ -30,6 +34,7 @@ const musicEvents = [
   97.608,
   97.817,
   98.050,
+  /*
   */
 ] as const;
 
@@ -49,12 +54,18 @@ let musicEventIdx = 0;
 let music: p5.SoundFile;
 let amplitude: p5.Amplitude;
 let fft: p5.FFT;
+
+let bPSControllerImage: p5.Image;
+let ulXBOXControllerImage: p5.Image;
+let urSNESControllerImage: p5.Image;
+
 let hasStarted = false;
 let mouseWasPressedLastFrame = false;
 
 function preload() {
   soundFormats('ogg');
   music = loadSound(`assets/${musicTrack}`);
+  bPSControllerImage = loadImage('assets/B-PS.png');
 }
 
 function setup() {
@@ -134,6 +145,14 @@ function draw() {
   // console.log('amp:', volumeLevel);
   pop();
 
+  // Draw controller images if displayed
+  push();
+  const urAngleRad = radians(30);
+  const ulAngleRad = radians(150);
+  const bAngleRad = radians(270);
+  image(bPSControllerImage, width / 2, height / 2, 100, 100);
+  pop();
+
   handleMusicTrack();
 }
 
@@ -182,6 +201,7 @@ function handleMusicTrack() {
     type ThresholdLabel = typeof thresholdLabels[number];
     const thresholdsS = [0.015 /*perfect*/, 0.03 /*great*/, 0.05 /*good*/, 0.01/*OK*/, Number.POSITIVE_INFINITY /*Miss*/] as const;
     const thresholdMessages = ['Perfect!', 'Great!', 'Good!', 'OK', 'Miss'] as const;
+    const goodIndex = 3;
     const missIndex = 4; // Index of miss label/message - must be a constant expression for type inference below
 
     const getThreshold = (distanceS: number): [ThresholdLabel, typeof thresholdsS[number], typeof thresholdMessages[number]] => {
@@ -227,14 +247,14 @@ function handleMusicTrack() {
             return result;
           }
         } else if (prevEvent !== undefined && !prevEvent.wasPressed && prevEventDistance !== undefined) {
-            console.log('3');
+          console.log('3');
           const result = getResult(prevEventDistance, prevEventIdx);
           if (result[1] !== 'MISS') {
             prevEvent.wasPressed = true;
           }
           return result;
         } else if (nextEvent !== undefined && !nextEvent.wasPressed && nextEventDistance !== undefined) {
-            console.log('4');
+          console.log('4');
           const result = getResult(nextEventDistance, nextEventIdx);
           if (result[1] !== 'MISS') {
             nextEvent.wasPressed = true;
