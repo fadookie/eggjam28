@@ -7,6 +7,7 @@ const redColor = '#D13938';
 const defaultStrokeWeight = 15;
 // const musicTrack = 'clickTrack110BPM';
 const musicTrack = 'tripleClickTheme';
+const canvasSize = 800;
 
 const bpm = 110;
 const beatsPerBar = 4;
@@ -56,8 +57,8 @@ let amplitude: p5.Amplitude;
 let fft: p5.FFT;
 
 let bPSControllerImage: p5.Image;
-let ulXBOXControllerImage: p5.Image;
 let urSNESControllerImage: p5.Image;
+let ulXBOXControllerImage: p5.Image;
 
 let hasStarted = false;
 let mouseWasPressedLastFrame = false;
@@ -66,10 +67,12 @@ function preload() {
   soundFormats('ogg');
   music = loadSound(`assets/${musicTrack}`);
   bPSControllerImage = loadImage('assets/B-PS.png');
+  urSNESControllerImage = loadImage('assets/UR-SNES.png');
+  ulXBOXControllerImage = loadImage('assets/UL-XBOX.png');
 }
 
 function setup() {
-  createCanvas(800, 800);
+  createCanvas(canvasSize, canvasSize);
 
   //@ts-expect-error
   amplitude = new p5.Amplitude();
@@ -91,6 +94,7 @@ function resetSketch() {
     wasPressed: false,
   }));
 
+  imageMode(CENTER);
   rectMode(CENTER);
   ellipseMode(RADIUS);
   textAlign(CENTER);
@@ -131,26 +135,42 @@ function draw() {
   push();
   const volumeLevel = amplitude.getLevel() + 2;
   // const volumeLevel = 0.75;
-  const smallCircleSize = volumeLevel * 100;
-  const mediumCircleSize = (volumeLevel * 100) + defaultStrokeWeight;
-  const largeCircleSize = (volumeLevel * 100) + (defaultStrokeWeight * 2);
+  const smallCircleRadius = volumeLevel * 100;
+  const mediumCircleRadius = (volumeLevel * 100) + defaultStrokeWeight;
+  const largeCircleRadius = (volumeLevel * 100) + (defaultStrokeWeight * 2);
 
   noFill();
   stroke(creamColor);
-  circle(width / 2, height / 2, largeCircleSize);
+  circle(width / 2, height / 2, largeCircleRadius);
   stroke(redColor);
-  circle(width / 2, height / 2, mediumCircleSize);
+  circle(width / 2, height / 2, mediumCircleRadius);
   stroke(darkBlueColor);
-  circle(width / 2, height / 2, smallCircleSize);
+  circle(width / 2, height / 2, smallCircleRadius);
   // console.log('amp:', volumeLevel);
   pop();
 
   // Draw controller images if displayed
   push();
-  const urAngleRad = radians(30);
-  const ulAngleRad = radians(150);
-  const bAngleRad = radians(270);
-  image(bPSControllerImage, width / 2, height / 2, 100, 100);
+  translate(width / 2, height / 2);
+  const getXYFromAngle = (thetaRad: number): [number, number] => {
+    // 𝑥=𝑟∗𝑠𝑖𝑛(θ),𝑦=𝑟∗𝑐𝑜𝑠(θ)
+    const r = mediumCircleRadius;
+    const x = r * sin(thetaRad);
+    const y = r * cos(thetaRad);
+    return [x, y];
+  };
+  const drawControllerImage = (angleDeg: number, controllerImage: p5.Image, strokeColor: string /* for debug only */) => {
+    const origMediumCircleDiameter = 4044;
+    const imageScaleRatio = ((mediumCircleRadius * 2) / origMediumCircleDiameter) + 0.01 /* fudge factor */;
+    const angleRad = radians(angleDeg);
+    const [x, y] = getXYFromAngle(angleRad);
+    image(controllerImage, x, y, controllerImage.width * imageScaleRatio, controllerImage.height * imageScaleRatio);
+    stroke(strokeColor);
+    circle(x, y, 2);
+  };
+  drawControllerImage(0, bPSControllerImage, 'red');
+  drawControllerImage(120, urSNESControllerImage, 'green');
+  drawControllerImage(240, ulXBOXControllerImage, 'blue');
   pop();
 
   handleMusicTrack();
