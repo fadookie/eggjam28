@@ -9,10 +9,17 @@ const defaultStrokeWeight = 15;
 const musicTrack = 'tripleClickTheme';
 const canvasSize = 800;
 
+type MusicEventType = 'CLICK' | 'B_ON' | 'UR_ON' | 'UL_ON' | 'B_OFF' | 'UR_OFF' | 'UL_OFF';
+
+type MusicEvent = {
+  timeS: number,
+  types: MusicEventType[]
+};
+
 const bpm = 110;
 const beatsPerBar = 4;
 const musicDebugCueTimeS = 0; //91; // TODO: remove later start time for debugging
-const musicEvents = [
+const musicEvents: MusicEvent[] = [
   /*
   // Click track test events
   1.091,
@@ -28,13 +35,15 @@ const musicEvents = [
 
   /* Triple click events
   */
-  1.090,
-  1.298,
-  1.532,
+  { timeS: 1.090, types: ['CLICK', 'UR_ON'] },
+  { timeS: 1.298, types: ['CLICK', 'B_ON'] },
+  { timeS: 1.532, types: ['CLICK', 'UL_ON'] },
 
-  97.608,
-  97.817,
-  98.050,
+  { timeS: 2.182, types: ['B_OFF', 'UR_OFF', 'UL_OFF'] },
+
+  { timeS: 97.608, types: ['CLICK', 'UL_ON'] },
+  { timeS: 97.817, types: ['CLICK', 'B_ON'] },
+  { timeS: 98.050, types: ['CLICK', 'UR_ON'] },
   /*
   */
 ] as const;
@@ -43,7 +52,7 @@ type MusicEventIndex = keyof typeof musicEvents;
 
 type MusicEventRuntimeData = {
   musicEventIndex: keyof typeof musicEvents,
-  musicEventTimeS: typeof musicEvents[number],
+  musicEvent: typeof musicEvents[number],
   wasPressed: boolean,
 };
 
@@ -60,8 +69,16 @@ let bPSControllerImage: p5.Image;
 let urSNESControllerImage: p5.Image;
 let ulXBOXControllerImage: p5.Image;
 
+let bPSControllerVisible: boolean = false;
+let urSNESControllerVisible: boolean = false;
+let ulXBOXControllerVisible: boolean = false;
+
 let hasStarted = false;
 let mouseWasPressedLastFrame = false;
+
+function isClickEvent(musicEvent: MusicEvent): boolean {
+  return musicEvent.types.includes('CLICK');
+}
 
 function preload() {
   soundFormats('ogg');
@@ -88,8 +105,8 @@ function resetSketch() {
   hasStarted = false;
 
   // Make music event runtime data
-  musicEventRuntimeData = musicEvents.map((musicEventTimeS, musicEventIndex) => ({
-    musicEventTimeS,
+  musicEventRuntimeData = musicEvents.map((musicEvent, musicEventIndex) => ({
+    musicEvent: musicEvent,
     musicEventIndex,
     wasPressed: false,
   }));
@@ -107,6 +124,10 @@ function resetSketch() {
   text('Click to begin', width / 2, height / 2);
 
   strokeWeight(defaultStrokeWeight);
+
+  bPSControllerVisible = false;
+  urSNESControllerVisible = false;
+  ulXBOXControllerVisible = false;
 
   music.stop();
 }
@@ -168,9 +189,9 @@ function draw() {
     stroke(strokeColor);
     circle(x, y, 2);
   };
-  drawControllerImage(0, bPSControllerImage, 'red');
-  drawControllerImage(120, urSNESControllerImage, 'green');
-  drawControllerImage(240, ulXBOXControllerImage, 'blue');
+  if (bPSControllerVisible) drawControllerImage(0, bPSControllerImage, 'red');
+  if (urSNESControllerVisible) drawControllerImage(120, urSNESControllerImage, 'green');
+  if (ulXBOXControllerVisible) drawControllerImage(240, ulXBOXControllerImage, 'blue');
   pop();
 
   handleMusicTrack();
@@ -199,21 +220,45 @@ function handleMusicTrack() {
   }
 
   // Check if the next musicEvent has fired
-  const nextEventTimeS = musicEvents[musicEventIdx];
-  if (nextEventTimeS && currentTimeS >= nextEventTimeS) {
-    // console.log('NEXT EVENT FIRE', { currentTimeS, nextEventTimeS });
+  const nextEvent = musicEvents[musicEventIdx];
+  if (nextEvent && currentTimeS >= nextEvent.timeS) {
+    console.log('NEXT EVENT FIRE', { currentTimeS, nextEvent });
     ++musicEventIdx;
+
+    // Handle image visiblity changes
+    nextEvent.types.forEach(type => {
+      switch(type) {
+        case 'B_ON':
+          bPSControllerVisible = true;
+          break;
+        case 'B_OFF':
+          bPSControllerVisible = false;
+          break;
+        case 'UR_ON':
+          urSNESControllerVisible = true;
+          break;
+        case 'UR_OFF':
+          urSNESControllerVisible = false;
+          break;
+        case 'UL_ON':
+          ulXBOXControllerVisible = true;
+          break;
+        case 'UL_OFF':
+          ulXBOXControllerVisible = false;
+          break;
+      }
+    });
   }
 
-  // process input
+  // process click inputs
   if (mouseIsPressed && !mouseWasPressedLastFrame) {
     // console.log("mouse press detected");
     // find nearest previous and next events
-    const prevEventIdx = musicEventRuntimeData.findIndex(evt => evt.musicEventTimeS < currentTimeS);
-    const nextEventIdx = musicEventRuntimeData.findIndex(evt => evt.musicEventTimeS >= currentTimeS);
+    const prevEventIdx = musicEventRuntimeData.findIndex(evt => isClickEvent(evt.musicEvent) && evt.musicEvent.timeS < currentTimeS);
+    const nextEventIdx = musicEventRuntimeData.findIndex(evt => isClickEvent(evt.musicEvent) && evt.musicEvent.timeS >= currentTimeS);
     const prevEvent = musicEventRuntimeData[prevEventIdx];
     const nextEvent = musicEventRuntimeData[nextEventIdx];
-    const getDistance = (evt: MusicEventRuntimeData): number => currentTimeS - evt.musicEventTimeS;
+    const getDistance = (evt: MusicEventRuntimeData): number => currentTimeS - evt.musicEvent.timeS;
     const prevEventDistance = mapOptional(prevEvent, getDistance);
     const nextEventDistance = mapOptional(nextEvent, getDistance);
 
@@ -313,11 +358,12 @@ function handleMusicTrack() {
   const musicTrackXTimeScale = 500;
   const currentSeekPosX = currentTimeS * musicTrackXTimeScale;
   for(let i = 0; i < musicEvents.length; ++i) {
-    const musicEventTimeS = musicEvents[i] || 0;
+    const musicEvent = musicEvents[i];
 
-    if (musicEventTimeS < currentTimeS) continue;
+    if (musicEvent == undefined || !isClickEvent(musicEvent)) continue;
+    if (musicEvent.timeS < currentTimeS) continue;
 
-    const x = (musicEventTimeS * musicTrackXTimeScale) - currentSeekPosX;
+    const x = (musicEvent.timeS * musicTrackXTimeScale) - currentSeekPosX;
     circle(x, circleY, 25);
 
     // debug label
