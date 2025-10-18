@@ -19,6 +19,16 @@ type MusicEvent = {
 const bpm = 110;
 const beatsPerBar = 4;
 const musicDebugCueTimeS = 0; //91; // TODO: remove later start time for debugging
+const floatingTextTimeS = 1;
+const floatingTextTimeDeltaY = 20;
+
+const thresholdLabels = ['PERFECT', 'GREAT', 'GOOD', 'OK', 'MISS'] as const; 
+type ThresholdLabel = typeof thresholdLabels[number];
+const thresholdsS = [0.015 /*perfect*/, 0.03 /*great*/, 0.05 /*good*/, 0.25/*OK*/, Number.POSITIVE_INFINITY /*Miss*/] as const;
+const thresholdMessages = ['Perfect!', 'Great!', 'Good!', 'OK', 'Miss'] as const;
+const goodIndex = 3;
+const missIndex = 4; // Index of miss label/message - must be a constant expression for type inference below
+
 const musicEvents: MusicEvent[] = [
   /*
   // Click track test events
@@ -50,10 +60,13 @@ const musicEvents: MusicEvent[] = [
 
 type MusicEventIndex = keyof typeof musicEvents;
 
+type DistanceResult = [number, ThresholdLabel, keyof typeof thresholdsS, typeof thresholdMessages[number], MusicEventIndex]
+
 type MusicEventRuntimeData = {
   musicEventIndex: keyof typeof musicEvents,
   musicEvent: typeof musicEvents[number],
-  wasPressed: boolean,
+  pressTimeS: number | undefined,
+  distanceResult: DistanceResult | undefined,
 };
 
 let musicEventRuntimeData: MusicEventRuntimeData[];
@@ -108,7 +121,7 @@ function resetSketch() {
   musicEventRuntimeData = musicEvents.map((musicEvent, musicEventIndex) => ({
     musicEvent: musicEvent,
     musicEventIndex,
-    wasPressed: false,
+    pressTimeS: undefined,
   }));
 
   imageMode(CENTER);
@@ -264,7 +277,7 @@ function handleMusicTrack() {
 
     const isValidEvent = (evt: MusicEventRuntimeData) => 
       isClickEvent(evt.musicEvent)
-      && !evt.wasPressed
+      && evt.pressTimeS !== undefined
       && Math.abs(getDistance(evt)) <= maxEventDistanceS;
 
     const prevEventIdx = musicEventRuntimeData.findIndex(evt =>
@@ -278,12 +291,6 @@ function handleMusicTrack() {
     const prevEventDistance = mapOptional(getDistance, prevEvent);
     const nextEventDistance = mapOptional(getDistance, nextEvent);
 
-    const thresholdLabels = ['PERFECT', 'GREAT', 'GOOD', 'OK', 'MISS'] as const; 
-    type ThresholdLabel = typeof thresholdLabels[number];
-    const thresholdsS = [0.015 /*perfect*/, 0.03 /*great*/, 0.05 /*good*/, 0.25/*OK*/, Number.POSITIVE_INFINITY /*Miss*/] as const;
-    const thresholdMessages = ['Perfect!', 'Great!', 'Good!', 'OK', 'Miss'] as const;
-    const goodIndex = 3;
-    const missIndex = 4; // Index of miss label/message - must be a constant expression for type inference below
 
     const getThreshold = (distanceS: number): [ThresholdLabel, typeof thresholdsS[number], typeof thresholdMessages[number]] => {
       for(let i = 0; i < thresholdsS.length; ++i) {
@@ -299,9 +306,8 @@ function handleMusicTrack() {
       return [thresholdLabels[missIndex], thresholdsS[missIndex], thresholdMessages[missIndex]];
     };
 
-    type DistanceResult = [number, ThresholdLabel, keyof typeof thresholdsS, typeof thresholdMessages[number], MusicEventIndex]
     try {
-      const [distance, thresholdLabel, threshold, thresholdMessage, nearestEventIdx] = ((): DistanceResult  => {
+      const distanceResult = ((): DistanceResult  => {
         const getResult = (distance: number, musicEventIndex: MusicEventIndex): DistanceResult => {
           return [distance, ...getThreshold(Math.abs(distance)), musicEventIndex];
         };
@@ -316,21 +322,23 @@ function handleMusicTrack() {
 
         if (prevEvent !== undefined && prevEventResult !== undefined) {
           // Prev event was not pressed yet - consider this the selected event
-            console.log('1');
-            prevEvent.wasPressed = true;
+            prevEvent.pressTimeS = currentTimeS;
+            prevEvent.distanceResult = prevEventResult;
             return prevEventResult;
         } else if (nextEvent !== undefined && nextEventResult !== undefined) {
           // Prev event was not pressed yet - consider this the selected event
-            console.log('1');
-            nextEvent.wasPressed = true;
+            nextEvent.pressTimeS = currentTimeS;
+            nextEvent.distanceResult = nextEventResult;
             return nextEventResult;
         }
         throw new Error('No threshold found'); // This is not really an error but more of a flow control hack
       })();
+      const [distance, thresholdLabel, threshold, thresholdMessage, nearestEventIdx] = distanceResult;
       console.log({ thresholdLabel, thresholdMessage, distance, threshold, nearestEventIdx });
     } catch {
     }
   }
+
   mouseWasPressedLastFrame = mouseIsPressed;
 
   // draw music track
@@ -350,8 +358,10 @@ function handleMusicTrack() {
   const circleY = 0;
 
   // cursor
+  const cursorX = 0;
+  const cursorY = 0;
   fill('blue');
-  circle(0, 0, 25);
+  circle(cursorX, cursorY, 25);
 
   fill('red');
   const musicTrackXTimeScale = 500;
@@ -370,6 +380,21 @@ function handleMusicTrack() {
     fill('black');
     text(i, x, circleY);
     pop();
+  }
+
+  // draw floating text for accuracy display
+  for(let i = 0; i < musicEventRuntimeData.length; ++i) {
+    const musicEvent = musicEventRuntimeData[i];
+
+    if (musicEvent === undefined || musicEvent.pressTimeS == undefined || musicEvent.distanceResult === undefined) continue;
+
+    const elapsedTimeSincePressS = currentTimeS - musicEvent.pressTimeS;
+    if (elapsedTimeSincePressS <= floatingTextTimeS) {
+      push();
+      fill('yellow');
+      text(musicEvent.distanceResult[3], cursorX, cursorY);
+      pop();
+    }
   }
   pop();
 }
