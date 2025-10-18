@@ -197,9 +197,13 @@ function draw() {
   handleMusicTrack();
 }
 
-function mapOptional<T, U>(x: T | undefined, f: (arg0: T) => U): U | undefined {
-  if (x === undefined) return undefined;
-  return f(x);
+function mapOptional<T, Result>(f: (arg0: T) => Result, x: T | undefined): Result | undefined;
+
+function mapOptional<T, U, Result>(f: (arg0: T, arg1: U) => Result, x: T | undefined, y: U | undefined): Result | undefined;
+
+function mapOptional(f: (...a: unknown[]) => unknown, ...args: unknown[]): unknown {
+  if (args.some(x => x === undefined)) return undefined;
+  return f(...args);
 }
 
 function handleMusicTrack() {
@@ -222,7 +226,7 @@ function handleMusicTrack() {
   // Check if the next musicEvent has fired
   const nextEvent = musicEvents[musicEventIdx];
   if (nextEvent && currentTimeS >= nextEvent.timeS) {
-    console.log('NEXT EVENT FIRE', { currentTimeS, nextEvent });
+    // console.log('NEXT EVENT FIRE', { currentTimeS, nextEvent });
     ++musicEventIdx;
 
     // Handle image visiblity changes
@@ -254,17 +258,29 @@ function handleMusicTrack() {
   if (mouseIsPressed && !mouseWasPressedLastFrame) {
     // console.log("mouse press detected");
     // find nearest previous and next events
-    const prevEventIdx = musicEventRuntimeData.findIndex(evt => isClickEvent(evt.musicEvent) && evt.musicEvent.timeS < currentTimeS);
-    const nextEventIdx = musicEventRuntimeData.findIndex(evt => isClickEvent(evt.musicEvent) && evt.musicEvent.timeS >= currentTimeS);
+    const maxEventDistanceS = 0.5;
+
+    const getDistance = (evt: MusicEventRuntimeData): number => currentTimeS - evt.musicEvent.timeS;
+
+    const isValidEvent = (evt: MusicEventRuntimeData) => 
+      isClickEvent(evt.musicEvent)
+      && !evt.wasPressed
+      && Math.abs(getDistance(evt)) <= maxEventDistanceS;
+
+    const prevEventIdx = musicEventRuntimeData.findIndex(evt =>
+      isValidEvent(evt)
+      && evt.musicEvent.timeS < currentTimeS);
+    const nextEventIdx = musicEventRuntimeData.findIndex(evt =>
+      isValidEvent(evt)
+      && evt.musicEvent.timeS >= currentTimeS);
     const prevEvent = musicEventRuntimeData[prevEventIdx];
     const nextEvent = musicEventRuntimeData[nextEventIdx];
-    const getDistance = (evt: MusicEventRuntimeData): number => currentTimeS - evt.musicEvent.timeS;
-    const prevEventDistance = mapOptional(prevEvent, getDistance);
-    const nextEventDistance = mapOptional(nextEvent, getDistance);
+    const prevEventDistance = mapOptional(getDistance, prevEvent);
+    const nextEventDistance = mapOptional(getDistance, nextEvent);
 
     const thresholdLabels = ['PERFECT', 'GREAT', 'GOOD', 'OK', 'MISS'] as const; 
     type ThresholdLabel = typeof thresholdLabels[number];
-    const thresholdsS = [0.015 /*perfect*/, 0.03 /*great*/, 0.05 /*good*/, 0.01/*OK*/, Number.POSITIVE_INFINITY /*Miss*/] as const;
+    const thresholdsS = [0.015 /*perfect*/, 0.03 /*great*/, 0.05 /*good*/, 0.25/*OK*/, Number.POSITIVE_INFINITY /*Miss*/] as const;
     const thresholdMessages = ['Perfect!', 'Great!', 'Good!', 'OK', 'Miss'] as const;
     const goodIndex = 3;
     const missIndex = 4; // Index of miss label/message - must be a constant expression for type inference below
@@ -287,46 +303,29 @@ function handleMusicTrack() {
     try {
       const [distance, thresholdLabel, threshold, thresholdMessage, nearestEventIdx] = ((): DistanceResult  => {
         const getResult = (distance: number, musicEventIndex: MusicEventIndex): DistanceResult => {
-          return [distance, ...getThreshold(distance), musicEventIndex];
+          return [distance, ...getThreshold(Math.abs(distance)), musicEventIndex];
         };
-        if (prevEvent !== undefined
-          && !prevEvent.wasPressed
-          && prevEventDistance !== undefined
-          && nextEvent !== undefined
-          && !nextEvent.wasPressed
-          && nextEventDistance !== undefined) {
-          // Both previous and next events are candidates, use whichever is closer
-          if (Math.abs(prevEventDistance) < Math.abs(nextEventDistance)) {
+
+        const prevEventResult = mapOptional((prevEvt, prevDistance) => {
+          return getResult(prevDistance, prevEventIdx);
+        }, prevEvent, prevEventDistance);
+
+        const nextEventResult = mapOptional((nextEvt, nextDistance) => {
+          return getResult(nextDistance, nextEventIdx);
+        }, nextEvent, nextEventDistance);
+
+        if (prevEvent !== undefined && prevEventResult !== undefined) {
+          // Prev event was not pressed yet - consider this the selected event
             console.log('1');
-            const result = getResult(prevEventDistance, prevEventIdx);
-            if (result[1] !== 'MISS') {
-              prevEvent.wasPressed = true;
-            }
-            return result;
-          } else {
-            console.log('2');
-            const result = getResult(nextEventDistance, nextEventIdx);
-            if (result[1] !== 'MISS') {
-              nextEvent.wasPressed = true;
-            }
-            return result;
-          }
-        } else if (prevEvent !== undefined && !prevEvent.wasPressed && prevEventDistance !== undefined) {
-          console.log('3');
-          const result = getResult(prevEventDistance, prevEventIdx);
-          if (result[1] !== 'MISS') {
             prevEvent.wasPressed = true;
-          }
-          return result;
-        } else if (nextEvent !== undefined && !nextEvent.wasPressed && nextEventDistance !== undefined) {
-          console.log('4');
-          const result = getResult(nextEventDistance, nextEventIdx);
-          if (result[1] !== 'MISS') {
+            return prevEventResult;
+        } else if (nextEvent !== undefined && nextEventResult !== undefined) {
+          // Prev event was not pressed yet - consider this the selected event
+            console.log('1');
             nextEvent.wasPressed = true;
-          }
-          return result;
-        } 
-        throw new Error('No threshold found');
+            return nextEventResult;
+        }
+        throw new Error('No threshold found'); // This is not really an error but more of a flow control hack
       })();
       console.log({ thresholdLabel, thresholdMessage, distance, threshold, nearestEventIdx });
     } catch {
