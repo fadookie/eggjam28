@@ -19,13 +19,12 @@ type MusicEvent = {
 const bpm = 110;
 const beatsPerBar = 4;
 const musicDebugCueTimeS = 0; //91; // TODO: remove later start time for debugging
-const floatingTextTimeS = 1;
-const floatingTextTimeDeltaY = 20;
 
 const thresholdLabels = ['PERFECT', 'GREAT', 'GOOD', 'OK', 'MISS'] as const; 
 type ThresholdLabel = typeof thresholdLabels[number];
 const thresholdsS = [0.015 /*perfect*/, 0.03 /*great*/, 0.05 /*good*/, 0.25/*OK*/, Number.POSITIVE_INFINITY /*Miss*/] as const;
 const thresholdMessages = ['Perfect!', 'Great!', 'Good!', 'OK', 'Miss'] as const;
+// thresholdMessageColors are defined after sketch loads as they rely on the color constructor
 const goodIndex = 3;
 const missIndex = 4; // Index of miss label/message - must be a constant expression for type inference below
 
@@ -60,7 +59,14 @@ const musicEvents: MusicEvent[] = [
 
 type MusicEventIndex = keyof typeof musicEvents;
 
-type DistanceResult = [number, ThresholdLabel, keyof typeof thresholdsS, typeof thresholdMessages[number], MusicEventIndex]
+type DistanceResult = {
+  distance: number,
+  thresholdLabel: ThresholdLabel,
+  threshold: keyof typeof thresholdsS,
+  thresholdMessage: typeof thresholdMessages[number],
+  thresholdMessageColor: p5.Color,
+  nearestEventIdx: MusicEventIndex,
+}
 
 type MusicEventRuntimeData = {
   musicEventIndex: keyof typeof musicEvents,
@@ -122,8 +128,10 @@ function resetSketch() {
     musicEvent: musicEvent,
     musicEventIndex,
     pressTimeS: undefined,
+    distanceResult: undefined,
   }));
 
+  colorMode(RGB, 1);
   imageMode(CENTER);
   rectMode(CENTER);
   ellipseMode(RADIUS);
@@ -277,7 +285,7 @@ function handleMusicTrack() {
 
     const isValidEvent = (evt: MusicEventRuntimeData) => 
       isClickEvent(evt.musicEvent)
-      && evt.pressTimeS !== undefined
+      && evt.pressTimeS === undefined
       && Math.abs(getDistance(evt)) <= maxEventDistanceS;
 
     const prevEventIdx = musicEventRuntimeData.findIndex(evt =>
@@ -291,25 +299,34 @@ function handleMusicTrack() {
     const prevEventDistance = mapOptional(getDistance, prevEvent);
     const nextEventDistance = mapOptional(getDistance, nextEvent);
 
+    type ThresholdResult = Pick<DistanceResult, 'thresholdLabel' | 'threshold' | 'thresholdMessage' | 'thresholdMessageColor'>;
 
-    const getThreshold = (distanceS: number): [ThresholdLabel, typeof thresholdsS[number], typeof thresholdMessages[number]] => {
+    const getThreshold = (distanceS: number): ThresholdResult => {
+      const thresholdMessageColors = [color('#9FFA8E'), color('#CCFB8F'), color('#FFFD90'), color('#F5C288'), color('#EE8581')] as const;
+
       for(let i = 0; i < thresholdsS.length; ++i) {
         const thresholdLabel = thresholdLabels[i];
         const threshold = thresholdsS[i];
         const thresholdMessage = thresholdMessages[i]; 
-        if (thresholdLabel !== undefined && threshold !== undefined &&  thresholdMessage !== undefined && distanceS < threshold) {
-          return [thresholdLabel, threshold, thresholdMessage];
+        const thresholdMessageColor = thresholdMessageColors[i]; 
+        if (thresholdLabel !== undefined && threshold !== undefined &&  thresholdMessage !== undefined && thresholdMessageColor !== undefined && distanceS < threshold) {
+          return { thresholdLabel, threshold, thresholdMessage, thresholdMessageColor };
         }
       }
 
       // No best threshold found, it's a miss
-      return [thresholdLabels[missIndex], thresholdsS[missIndex], thresholdMessages[missIndex]];
+      return {
+        thresholdLabel: thresholdLabels[missIndex],
+        threshold: thresholdsS[missIndex],
+        thresholdMessage: thresholdMessages[missIndex],
+        thresholdMessageColor: thresholdMessageColors[missIndex],
+      };
     };
 
     try {
       const distanceResult = ((): DistanceResult  => {
         const getResult = (distance: number, musicEventIndex: MusicEventIndex): DistanceResult => {
-          return [distance, ...getThreshold(Math.abs(distance)), musicEventIndex];
+          return { distance, ...getThreshold(Math.abs(distance)), nearestEventIdx: musicEventIndex };
         };
 
         const prevEventResult = mapOptional((prevEvt, prevDistance) => {
@@ -322,20 +339,23 @@ function handleMusicTrack() {
 
         if (prevEvent !== undefined && prevEventResult !== undefined) {
           // Prev event was not pressed yet - consider this the selected event
-            prevEvent.pressTimeS = currentTimeS;
-            prevEvent.distanceResult = prevEventResult;
-            return prevEventResult;
+          prevEvent.pressTimeS = currentTimeS;
+          prevEvent.distanceResult = prevEventResult;
+          console.log('selected prevEvent:', prevEvent);
+          return prevEventResult;
         } else if (nextEvent !== undefined && nextEventResult !== undefined) {
           // Prev event was not pressed yet - consider this the selected event
-            nextEvent.pressTimeS = currentTimeS;
-            nextEvent.distanceResult = nextEventResult;
-            return nextEventResult;
+          nextEvent.pressTimeS = currentTimeS;
+          nextEvent.distanceResult = nextEventResult;
+          console.log('selected nextEvent:', nextEvent);
+          return nextEventResult;
         }
         throw new Error('No threshold found'); // This is not really an error but more of a flow control hack
       })();
-      const [distance, thresholdLabel, threshold, thresholdMessage, nearestEventIdx] = distanceResult;
+      const { distance, thresholdLabel, threshold, thresholdMessage, nearestEventIdx } = distanceResult;
       console.log({ thresholdLabel, thresholdMessage, distance, threshold, nearestEventIdx });
-    } catch {
+    } catch (e) {
+      // console.error(e);
     }
   }
 
@@ -355,17 +375,19 @@ function handleMusicTrack() {
 
   translate(50, 50);
 
-  const circleY = 0;
+  const targetCircleY = 0;
 
   // cursor
   const cursorX = 0;
-  const cursorY = 0;
+  const cursorY = targetCircleY;
   fill('blue');
   circle(cursorX, cursorY, 25);
 
   fill('red');
   const musicTrackXTimeScale = 500;
   const currentSeekPosX = currentTimeS * musicTrackXTimeScale;
+
+  // draw target circles
   for(let i = 0; i < musicEvents.length; ++i) {
     const musicEvent = musicEvents[i];
 
@@ -373,12 +395,12 @@ function handleMusicTrack() {
     if (musicEvent.timeS < currentTimeS) continue;
 
     const x = (musicEvent.timeS * musicTrackXTimeScale) - currentSeekPosX;
-    circle(x, circleY, 25);
+    circle(x, targetCircleY, 25);
 
     // debug label
     push();
     fill('black');
-    text(i, x, circleY);
+    text(i, x, targetCircleY);
     pop();
   }
 
@@ -386,13 +408,27 @@ function handleMusicTrack() {
   for(let i = 0; i < musicEventRuntimeData.length; ++i) {
     const musicEvent = musicEventRuntimeData[i];
 
-    if (musicEvent === undefined || musicEvent.pressTimeS == undefined || musicEvent.distanceResult === undefined) continue;
+    if (musicEvent === undefined || musicEvent.pressTimeS === undefined || musicEvent.distanceResult === undefined) continue;
+
+    const floatingTextTimeS = 0.5;
+    const floatingTextTimeDeltaY = 30;
 
     const elapsedTimeSincePressS = currentTimeS - musicEvent.pressTimeS;
+    const tweenPercentage = elapsedTimeSincePressS / floatingTextTimeS;
+    const startY = cursorY;
+    const targetY = startY - floatingTextTimeDeltaY;
+
     if (elapsedTimeSincePressS <= floatingTextTimeS) {
+      // console.log(`elapsedTimeSincePressS: ${elapsedTimeSincePressS} currentTime:${currentTimeS} pressTimeS:${musicEvent.pressTimeS}`);
+      const textString = musicEvent.distanceResult.thresholdMessage;
+      const currentY = lerp(startY, targetY, tweenPercentage);
+      const currentAlpha = 1;//1 - tweenPercentage;
+      const baseTextColor = musicEvent.distanceResult.thresholdMessageColor;
+      const textColor = color(red(baseTextColor), green(baseTextColor), blue(baseTextColor), currentAlpha);
+      // console.log(`draw floating text:`, textString, currentY, currentAlpha);
       push();
-      fill('yellow');
-      text(musicEvent.distanceResult[3], cursorX, cursorY);
+      fill(textColor);
+      text(textString, cursorX, currentY);
       pop();
     }
   }
