@@ -95,6 +95,7 @@ let ulXBOXControllerVisible: boolean = false;
 
 let hasStarted = false;
 let mouseWasPressedLastFrame = false;
+let framesToSkipMusicTrack = 0;
 
 function isClickEvent(musicEvent: MusicEvent): boolean {
   return musicEvent.types.includes('CLICK');
@@ -154,6 +155,9 @@ function resetSketch() {
   urSNESControllerVisible = false;
   ulXBOXControllerVisible = false;
 
+  framesToSkipMusicTrack = 1; // Attempt workaround for bug with restarting music track reporting the last duration it was at before stopping
+
+  // music.jump(0, 0);
   music.stop();
 }
 
@@ -220,7 +224,12 @@ function draw() {
   if (ulXBOXControllerVisible) drawControllerImage(240, ulXBOXControllerImage, 'blue');
   pop();
 
-  handleMusicTrack();
+  // Attempt workaround for bug with restarting music track reporting the last duration it was at before stopping
+  if (framesToSkipMusicTrack > 0) {
+    --framesToSkipMusicTrack;
+  } else {
+    handleMusicTrack();
+  }
 }
 
 function mapOptional<T, Result>(f: (arg0: T) => Result, x: T | undefined): Result | undefined;
@@ -252,7 +261,7 @@ function handleMusicTrack() {
   // Check if the next musicEvent has fired
   const nextEvent = musicEvents[musicEventIdx];
   if (nextEvent && currentTimeS >= nextEvent.timeS) {
-    // console.log('NEXT EVENT FIRE', { currentTimeS, nextEvent });
+    console.log('NEXT EVENT FIRE', { currentTimeS, nextEvent });
     ++musicEventIdx;
 
     // Handle image visiblity changes
