@@ -80,6 +80,7 @@ let musicEventRuntimeData: MusicEventRuntimeData[];
 let lastBeat = -1;
 let musicEventIdx = 0;
 
+let bingSfx: p5.SoundFile;
 let music: p5.SoundFile;
 let amplitude: p5.Amplitude;
 let fft: p5.FFT;
@@ -101,6 +102,7 @@ function isClickEvent(musicEvent: MusicEvent): boolean {
 
 function preload() {
   soundFormats('ogg');
+  bingSfx = loadSound('assets/bing');
   music = loadSound(`assets/${musicTrack}`);
   bPSControllerImage = loadImage('assets/B-PS.png');
   urSNESControllerImage = loadImage('assets/UR-SNES.png');
@@ -440,6 +442,7 @@ function mouseClicked() {
   if (!hasStarted) {
     hasStarted = true;
     userStartAudio();
+    bingSfx.play();
     music.play(undefined, undefined, undefined, musicDebugCueTimeS);
     console.log('first click');
     return;
