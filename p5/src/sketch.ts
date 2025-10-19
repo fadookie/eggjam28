@@ -148,6 +148,8 @@ function resetSketch() {
 
   strokeWeight(defaultStrokeWeight);
 
+  musicEventIdx = 0;
+
   bPSControllerVisible = false;
   urSNESControllerVisible = false;
   ulXBOXControllerVisible = false;
@@ -209,8 +211,9 @@ function draw() {
     const angleRad = radians(angleDeg);
     const [x, y] = getXYFromAngle(angleRad);
     image(controllerImage, x, y, controllerImage.width * imageScaleRatio, controllerImage.height * imageScaleRatio);
-    stroke(strokeColor);
-    circle(x, y, 2);
+    // draw debug center point
+    // stroke(strokeColor);
+    // circle(x, y, 2);
   };
   if (bPSControllerVisible) drawControllerImage(0, bPSControllerImage, 'red');
   if (urSNESControllerVisible) drawControllerImage(120, urSNESControllerImage, 'green');
@@ -290,16 +293,16 @@ function handleMusicTrack() {
       && evt.pressTimeS === undefined
       && Math.abs(getDistance(evt)) <= maxEventDistanceS;
 
-    const prevEventIdx = musicEventRuntimeData.findIndex(evt =>
+    const prevValidEventIdx = musicEventRuntimeData.findIndex(evt =>
       isValidEvent(evt)
       && evt.musicEvent.timeS < currentTimeS);
-    const nextEventIdx = musicEventRuntimeData.findIndex(evt =>
+    const nextValidEventIdx = musicEventRuntimeData.findIndex(evt =>
       isValidEvent(evt)
       && evt.musicEvent.timeS >= currentTimeS);
-    const prevEvent = musicEventRuntimeData[prevEventIdx];
-    const nextEvent = musicEventRuntimeData[nextEventIdx];
-    const prevEventDistance = mapOptional(getDistance, prevEvent);
-    const nextEventDistance = mapOptional(getDistance, nextEvent);
+    const prevValidEvent = musicEventRuntimeData[prevValidEventIdx];
+    const nextValidEvent = musicEventRuntimeData[nextValidEventIdx];
+    const prevValidEventDistance = mapOptional(getDistance, prevValidEvent);
+    const nextValidEventDistance = mapOptional(getDistance, nextValidEvent);
 
     type ThresholdResult = Pick<DistanceResult, 'thresholdLabel' | 'threshold' | 'thresholdMessage' | 'thresholdMessageColor'>;
 
@@ -332,24 +335,24 @@ function handleMusicTrack() {
         };
 
         const prevEventResult = mapOptional((prevEvt, prevDistance) => {
-          return getResult(prevDistance, prevEventIdx);
-        }, prevEvent, prevEventDistance);
+          return getResult(prevDistance, prevValidEventIdx);
+        }, prevValidEvent, prevValidEventDistance);
 
         const nextEventResult = mapOptional((nextEvt, nextDistance) => {
-          return getResult(nextDistance, nextEventIdx);
-        }, nextEvent, nextEventDistance);
+          return getResult(nextDistance, nextValidEventIdx);
+        }, nextValidEvent, nextValidEventDistance);
 
-        if (prevEvent !== undefined && prevEventResult !== undefined) {
+        if (prevValidEvent !== undefined && prevEventResult !== undefined) {
           // Prev event was not pressed yet - consider this the selected event
-          prevEvent.pressTimeS = currentTimeS;
-          prevEvent.distanceResult = prevEventResult;
-          console.log('selected prevEvent:', prevEvent);
+          prevValidEvent.pressTimeS = currentTimeS;
+          prevValidEvent.distanceResult = prevEventResult;
+          console.log('selected prevEvent:', prevValidEvent);
           return prevEventResult;
-        } else if (nextEvent !== undefined && nextEventResult !== undefined) {
+        } else if (nextValidEvent !== undefined && nextEventResult !== undefined) {
           // Prev event was not pressed yet - consider this the selected event
-          nextEvent.pressTimeS = currentTimeS;
-          nextEvent.distanceResult = nextEventResult;
-          console.log('selected nextEvent:', nextEvent);
+          nextValidEvent.pressTimeS = currentTimeS;
+          nextValidEvent.distanceResult = nextEventResult;
+          console.log('selected nextEvent:', nextValidEvent);
           return nextEventResult;
         }
         throw new Error('No threshold found'); // This is not really an error but more of a flow control hack
@@ -370,8 +373,14 @@ function handleMusicTrack() {
   push();
   textSize(20);
   fill(creamColor);
+  const statusLine: string = (() => {
+    if (nextEvent === undefined) return "Rest";
+    if (currentTimeS <= nextEvent.timeS + 0.05 /* fudge to display a bit after an event */ && nextEvent.timeS - currentTimeS < 2) return "Get ready!";
+    return "Rest";
+  })();
+  // console.log({statusLine, nextEvent, delta: mapOptional(nextEvt => currentTimeS - nextEvt.timeS, nextEvent) });
   const timeRemainingS = Math.floor(music.duration() - currentTimeS);
-  const hud = `${measure}.${beatInBar} T-${timeRemainingS}s`;
+  const hud = `${measure}.${beatInBar} T-${timeRemainingS}s\n${statusLine}`;
   text(hud, width / 2, height / 2);
   pop();
 
