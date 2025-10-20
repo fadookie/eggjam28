@@ -173,10 +173,18 @@ function draw() {
   translate(0, fftGraphHeight);
   rectMode(CORNER);
   noStroke();
-  fill(redColor);
+  colorMode(HSB);
+  const fftBaseColor = darkBlueColor;
+  const fftHue = hue(fftBaseColor);
+  const fftSat = saturation(fftBaseColor);
+  const fftBaseBright = brightness(fftBaseColor);
+  const fftDimmestBright = 0.2;
   for (let i = 0; i< linAverages.length; i++){
+    const lerpPct = i / linAverages.length;
+    const bright = lerp(fftBaseBright, fftDimmestBright, lerpPct);
     let x = map(i, 0, linAverages.length, 0, width);
     let h = -fftGraphHeight + map(linAverages[i], 0, 255, fftGraphHeight, 0);
+    fill(fftHue, fftSat, bright);
     rect(x, fftGraphHeight, width / linAverages.length, h );
   }
   pop();
@@ -396,14 +404,14 @@ function handleMusicTrack() {
   translate(50, 50);
 
   const targetCircleY = 0;
+  const circleMaxRadius = 25;
 
   // cursor
   const cursorX = 0;
   const cursorY = targetCircleY;
-  fill('blue');
-  circle(cursorX, cursorY, 25);
+  fill(darkBlueColor);
+  circle(cursorX, cursorY, circleMaxRadius);
 
-  fill('red');
   const musicTrackXTimeScale = 500;
   const currentSeekPosX = currentTimeS * musicTrackXTimeScale;
 
@@ -414,14 +422,20 @@ function handleMusicTrack() {
     if (musicEvent == undefined || !isClickEvent(musicEvent)) continue;
     if (musicEvent.timeS < currentTimeS) continue;
 
+    // Target circle is concentric rings
     const x = (musicEvent.timeS * musicTrackXTimeScale) - currentSeekPosX;
-    circle(x, targetCircleY, 25);
+    fill(creamColor);
+    circle(x, targetCircleY, circleMaxRadius);
+    fill(redColor);
+    circle(x, targetCircleY, circleMaxRadius - 7);
+    fill(darkBlueColor);
+    circle(x, targetCircleY, circleMaxRadius - 14);
 
     // debug label
-    push();
-    fill('black');
-    text(i, x, targetCircleY);
-    pop();
+    // push();
+    // fill('black');
+    // text(i, x, targetCircleY);
+    // pop();
   }
 
   // draw floating text for accuracy display
