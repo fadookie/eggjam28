@@ -324,7 +324,7 @@ function handleMusicTrack() {
     type ThresholdResult = Pick<DistanceResult, 'thresholdLabel' | 'threshold' | 'thresholdMessage' | 'thresholdMessageColor'>;
 
     const getThreshold = (distanceS: number): ThresholdResult => {
-      const thresholdMessageColors = [color('#9FFA8E'), color('#CCFB8F'), color('#FFFD90'), color('#F5C288'), color('#EE8581')] as const;
+      const thresholdMessageColors = [color('#10f385ff'), color('#69c964ff'), color('#fffb00ff'), color('#f1ad5fff'), color('#f46964ff')] as const;
 
       for(let i = 0; i < thresholdsS.length; ++i) {
         const thresholdLabel = thresholdLabels[i];
@@ -438,7 +438,7 @@ function handleMusicTrack() {
     // pop();
   }
 
-  // draw floating text for accuracy display
+  // draw floating text for accuracy display and pulse
   for(let i = 0; i < musicEventRuntimeData.length; ++i) {
     const musicEvent = musicEventRuntimeData[i];
 
@@ -454,14 +454,26 @@ function handleMusicTrack() {
 
     if (elapsedTimeSincePressS <= floatingTextTimeS) {
       // console.log(`elapsedTimeSincePressS: ${elapsedTimeSincePressS} currentTime:${currentTimeS} pressTimeS:${musicEvent.pressTimeS}`);
+      push();
+
+      // draw pulse
+      const pulseRadiusEnd = circleMaxRadius + 50;
+      const pulseRadius = lerp(circleMaxRadius, pulseRadiusEnd, tweenPercentage);
+      const basePulseColor = creamColor;
+      const pulseAlpha = 0.5 - tweenPercentage;
+      const pulseColor = color(red(basePulseColor), green(basePulseColor), blue(basePulseColor), pulseAlpha);
+      fill(pulseColor);
+      circle(cursorX, cursorY, pulseRadius);
+
+      // draw floating text
       const textString = musicEvent.distanceResult.thresholdMessage;
       const currentY = lerp(startY, targetY, tweenPercentage);
-      const currentAlpha = 1;//1 - tweenPercentage;
       const baseTextColor = musicEvent.distanceResult.thresholdMessageColor;
-      const textColor = color(red(baseTextColor), green(baseTextColor), blue(baseTextColor), currentAlpha);
+      const textAlpha = 1 - tweenPercentage;
+      const textColor = color(red(baseTextColor), green(baseTextColor), blue(baseTextColor), textAlpha);
       // console.log(`draw floating text:`, textString, currentY, currentAlpha);
-      push();
       fill(textColor);
+      textStyle('bold');
       text(textString, cursorX, currentY);
       pop();
     }
