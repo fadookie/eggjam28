@@ -9,6 +9,8 @@ const defaultStrokeWeight = 15;
 const musicTrack = 'tripleClickTheme';
 const canvasSize = 800;
 
+type GameState = 'START' | 'GAME' | 'WRAPUP';
+
 type MusicEventType = 'CLICK' | 'B_ON' | 'UR_ON' | 'UL_ON' | 'B_OFF' | 'UR_OFF' | 'UL_OFF';
 
 type MusicEvent = {
@@ -18,7 +20,7 @@ type MusicEvent = {
 
 const bpm = 110;
 const beatsPerBar = 4;
-const musicDebugCueTimeS = 0; //91; // TODO: remove later start time for debugging
+const musicDebugCueTimeS = 91; //91; // TODO: remove later start time for debugging
 
 const thresholdLabels = ['PERFECT', 'GREAT', 'GOOD', 'OK', 'MISS'] as const; 
 type ThresholdLabel = typeof thresholdLabels[number];
@@ -93,7 +95,7 @@ let bPSControllerVisible: boolean = false;
 let urSNESControllerVisible: boolean = false;
 let ulXBOXControllerVisible: boolean = false;
 
-let hasStarted = false;
+let gameState: GameState = 'START';
 let mouseWasPressedLastFrame = false;
 let framesToSkipMusicTrack = 0;
 
@@ -124,7 +126,7 @@ function setup() {
 }
 
 function resetSketch() {
-  hasStarted = false;
+  gameState = 'START';
 
   // Make music event runtime data
   musicEventRuntimeData = musicEvents.map((musicEvent, musicEventIndex) => ({
@@ -142,11 +144,6 @@ function resetSketch() {
   stroke(creamColor);
   fill(darkBlueColor);
 
-  // Draw splash screen
-  background(backgroundColor);
-  strokeWeight(3);
-  text('Click to begin', width / 2, height / 2);
-
   strokeWeight(defaultStrokeWeight);
 
   musicEventIdx = 0;
@@ -162,7 +159,46 @@ function resetSketch() {
 }
 
 function draw() {
-  if (!hasStarted) return;
+  switch(gameState) {
+    case 'START':
+      drawStart();
+      break;
+    case 'GAME':
+      drawGameMode();
+      break;
+    case 'WRAPUP':
+      drawWrapup();
+      break;
+    default:
+      throw gameState satisfies never;
+  }
+}
+
+function drawStart() {
+  // Draw splash screen
+  push();
+  background(backgroundColor);
+  strokeWeight(3);
+  text('Click to begin', width / 2, height / 2);
+  pop();
+}
+
+function drawWrapup() {
+  // Draw wrapup screen
+  push();
+  background(backgroundColor);
+  strokeWeight(3);
+  text('Wrapup placeholder', width / 2, height / 2);
+  pop();
+}
+
+function drawGameMode() {
+  // check for track end
+  if (!music.isPlaying() && !music.isPaused()) {
+    gameState = 'WRAPUP';
+    return;
+  }
+
   background(backgroundColor);
 
   // draw fft
@@ -482,19 +518,33 @@ function handleMusicTrack() {
 }
 
 function mouseClicked() {
-  // First click enables audio context
-  if (!hasStarted) {
-    hasStarted = true;
-    userStartAudio();
-    bingSfx.play();
-    music.play(undefined, undefined, undefined, musicDebugCueTimeS);
-    console.log('first click');
-    return;
+  switch(gameState) {
+    case 'START': {
+      // First click enables audio context
+      gameState = 'GAME';
+      userStartAudio();
+      bingSfx.play();
+      music.play(undefined, undefined, undefined, musicDebugCueTimeS);
+      console.log('first click');
+      break;
+    }
+    case 'GAME': {
+      // game clicks are handled in handleMusicTrack function
+      break;
+    }
+    case 'WRAPUP': {
+      console.log('wrapup click');
+      resetSketch();
+      break;
+    }
+    default:
+      throw gameState satisfies never;
   }
-  // handle subsequent click here if needed. game clicks are handled in handleMusicTrack function
 }
 
 function keyPressed() {
+  if (gameState !== 'GAME') return;
+
   if (key === 'r') {
     // reset sketch
     console.log('reset sketch');
