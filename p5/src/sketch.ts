@@ -20,12 +20,13 @@ type MusicEvent = {
 
 const bpm = 110;
 const beatsPerBar = 4;
-const musicDebugCueTimeS = 91; //91; // TODO: remove later start time for debugging
+const musicDebugCueTimeS = 0; //91; // TODO: remove later start time for debugging
 
 const thresholdLabels = ['PERFECT', 'GREAT', 'GOOD', 'OK', 'MISS'] as const; 
 type ThresholdLabel = typeof thresholdLabels[number];
 const thresholdsS = [0.015 /*perfect*/, 0.03 /*great*/, 0.05 /*good*/, 0.25/*OK*/, Number.POSITIVE_INFINITY /*Miss*/] as const;
 const thresholdMessages = ['Perfect!', 'Great!', 'Good!', 'OK', 'Miss'] as const;
+const thresholdScores = [1000, 500, 250, 100, 0] as const;
 // thresholdMessageColors are defined after sketch loads as they rely on the color constructor
 const goodIndex = 3;
 const missIndex = 4; // Index of miss label/message - must be a constant expression for type inference below
@@ -64,6 +65,7 @@ type MusicEventIndex = keyof typeof musicEvents;
 type DistanceResult = {
   distance: number,
   thresholdLabel: ThresholdLabel,
+  thresholdScore: typeof thresholdScores[number],
   threshold: keyof typeof thresholdsS,
   thresholdMessage: typeof thresholdMessages[number],
   thresholdMessageColor: p5.Color,
@@ -81,6 +83,7 @@ let musicEventRuntimeData: MusicEventRuntimeData[];
 
 let lastBeat = -1;
 let musicEventIdx = 0;
+let score = 0;
 
 let bingSfx: p5.SoundFile;
 let music: p5.SoundFile;
@@ -147,6 +150,7 @@ function resetSketch() {
   strokeWeight(defaultStrokeWeight);
 
   musicEventIdx = 0;
+  score = 0;
 
   bPSControllerVisible = false;
   urSNESControllerVisible = false;
@@ -357,24 +361,26 @@ function handleMusicTrack() {
     const prevValidEventDistance = mapOptional(getDistance, prevValidEvent);
     const nextValidEventDistance = mapOptional(getDistance, nextValidEvent);
 
-    type ThresholdResult = Pick<DistanceResult, 'thresholdLabel' | 'threshold' | 'thresholdMessage' | 'thresholdMessageColor'>;
+    type ThresholdResult = Pick<DistanceResult, 'thresholdLabel' | 'thresholdScore' | 'threshold' | 'thresholdMessage' | 'thresholdMessageColor'>;
 
     const getThreshold = (distanceS: number): ThresholdResult => {
       const thresholdMessageColors = [color('#10f385ff'), color('#69c964ff'), color('#fffb00ff'), color('#f1ad5fff'), color('#f46964ff')] as const;
 
       for(let i = 0; i < thresholdsS.length; ++i) {
         const thresholdLabel = thresholdLabels[i];
+        const thresholdScore = thresholdScores[i];
         const threshold = thresholdsS[i];
         const thresholdMessage = thresholdMessages[i]; 
         const thresholdMessageColor = thresholdMessageColors[i]; 
-        if (thresholdLabel !== undefined && threshold !== undefined &&  thresholdMessage !== undefined && thresholdMessageColor !== undefined && distanceS < threshold) {
-          return { thresholdLabel, threshold, thresholdMessage, thresholdMessageColor };
+        if (thresholdLabel !== undefined && thresholdScore !== undefined && threshold !== undefined &&  thresholdMessage !== undefined && thresholdMessageColor !== undefined && distanceS < threshold) {
+          return { thresholdLabel, thresholdScore, threshold, thresholdMessage, thresholdMessageColor };
         }
       }
 
       // No best threshold found, it's a miss
       return {
         thresholdLabel: thresholdLabels[missIndex],
+        thresholdScore: thresholdScores[missIndex],
         threshold: thresholdsS[missIndex],
         thresholdMessage: thresholdMessages[missIndex],
         thresholdMessageColor: thresholdMessageColors[missIndex],
@@ -410,8 +416,9 @@ function handleMusicTrack() {
         }
         throw new Error('No threshold found'); // This is not really an error but more of a flow control hack
       })();
-      const { distance, thresholdLabel, threshold, thresholdMessage, nearestEventIdx } = distanceResult;
-      console.log({ thresholdLabel, thresholdMessage, distance, threshold, nearestEventIdx });
+      const { distance, thresholdLabel, thresholdScore, threshold, thresholdMessage, nearestEventIdx } = distanceResult;
+      console.log({ thresholdLabel, thresholdScore, thresholdMessage, distance, threshold, nearestEventIdx });
+      score += thresholdScore;
     } catch (e) {
       // console.error(e);
     }
@@ -422,7 +429,7 @@ function handleMusicTrack() {
   // draw music track
   noStroke();
 
-  // Draw measure/beat/time counter HUD
+  // Draw measure/beat/time counter/score HUD
   push();
   textSize(20);
   fill(creamColor);
@@ -433,7 +440,7 @@ function handleMusicTrack() {
   })();
   // console.log({statusLine, nextEvent, delta: mapOptional(nextEvt => currentTimeS - nextEvt.timeS, nextEvent) });
   const timeRemainingS = Math.floor(music.duration() - currentTimeS);
-  const hud = `${measure}.${beatInBar} T-${timeRemainingS}s\n${statusLine}`;
+  const hud = `Score: ${score}\n${measure}.${beatInBar} T-${timeRemainingS}s\n${statusLine}`;
   text(hud, width / 2, height / 2);
   pop();
 
