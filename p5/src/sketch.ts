@@ -20,7 +20,7 @@ type MusicEvent = {
 
 const bpm = 110;
 const beatsPerBar = 4;
-const musicDebugCueTimeS = 0; //91; // TODO: remove later start time for debugging
+const musicDebugCueTimeS = 0; //91 - right before last three clicks. 106 - end of song; // TODO: remove later start time for debugging
 
 const thresholdLabels = ['PERFECT', 'GREAT', 'GOOD', 'OK', 'MISS'] as const; 
 type ThresholdLabel = typeof thresholdLabels[number];
@@ -51,7 +51,7 @@ const musicEvents: MusicEvent[] = [
   { timeS: 1.298, types: ['CLICK', 'B_ON'] },
   { timeS: 1.532, types: ['CLICK', 'UL_ON'] },
 
-  { timeS: 2.182, types: ['B_OFF', 'UR_OFF', 'UL_OFF'] },
+  { timeS: /*2.182 bar 2*/ 4.364 /* bar 3 */, types: ['B_OFF', 'UR_OFF', 'UL_OFF'] },
 
   { timeS: 97.608, types: ['CLICK', 'UL_ON'] },
   { timeS: 97.817, types: ['CLICK', 'B_ON'] },
@@ -156,7 +156,7 @@ function resetSketch() {
   urSNESControllerVisible = false;
   ulXBOXControllerVisible = false;
 
-  framesToSkipMusicTrack = 1; // Attempt workaround for bug with restarting music track reporting the last duration it was at before stopping
+  framesToSkipMusicTrack = 3; // Attempt workaround for bug with restarting music track reporting the last duration it was at before stopping
 
   // music.jump(0, 0);
   music.stop();
@@ -182,8 +182,17 @@ function drawStart() {
   // Draw splash screen
   push();
   background(backgroundColor);
+
   strokeWeight(3);
-  text('Click to begin', width / 2, height / 2);
+  textSize(40);
+  const heightOffset = 30;
+  const jiggleScale = 8;
+  let xJiggle = jiggleScale * noise(0.075 * frameCount);
+  let yJiggle = jiggleScale * noise(0.075 * frameCount + 10000);
+  text('Triple Click Hero', (width / 2) + xJiggle, (height / 2) - heightOffset + yJiggle);
+
+  textSize(24);
+  text('Click to begin', width / 2, (height / 2) + heightOffset);
   pop();
 }
 
@@ -191,8 +200,14 @@ function drawWrapup() {
   // Draw wrapup screen
   push();
   background(backgroundColor);
+
   strokeWeight(3);
-  text('Wrapup placeholder', width / 2, height / 2);
+  textSize(40);
+  const heightOffset = 30;
+  text('You Win!', width / 2, (height / 2) - heightOffset);
+
+  textSize(24);
+  text(`Score: ${score}\nClick to play again`, width / 2, (height / 2) + heightOffset);
   pop();
 }
 
