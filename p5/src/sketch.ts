@@ -504,8 +504,9 @@ function handleMusicTrack() {
   // cursor
   const cursorX = 0;
   const cursorY = targetCircleY;
+  const cursorRadius = beat % 2 === 0 ? circleMaxRadius : circleMaxRadius + 2;
   fill(darkBlueColor);
-  circle(cursorX, cursorY, circleMaxRadius);
+  circle(cursorX, cursorY, cursorRadius);
 
   const musicTrackXTimeScale = 500;
   const currentSeekPosX = currentTimeS * musicTrackXTimeScale;
