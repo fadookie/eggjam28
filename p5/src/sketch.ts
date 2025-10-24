@@ -90,6 +90,8 @@ let music: p5.SoundFile;
 let amplitude: p5.Amplitude;
 let fft: p5.FFT;
 
+let metalManiaFont: p5.Font;
+
 let bPSControllerImage: p5.Image;
 let urSNESControllerImage: p5.Image;
 let ulXBOXControllerImage: p5.Image;
@@ -110,6 +112,7 @@ function preload() {
   soundFormats('ogg');
   bingSfx = loadSound('assets/bing');
   music = loadSound(`assets/${musicTrack}`);
+  metalManiaFont = loadFont('assets/MetalMania-Regular.ttf');
   bPSControllerImage = loadImage('assets/B-PS.png');
   urSNESControllerImage = loadImage('assets/UR-SNES.png');
   ulXBOXControllerImage = loadImage('assets/UL-XBOX.png');
@@ -144,6 +147,7 @@ function resetSketch() {
   rectMode(CENTER);
   ellipseMode(RADIUS);
   textAlign(CENTER);
+  textFont(metalManiaFont);
   stroke(creamColor);
   fill(darkBlueColor);
 
@@ -178,30 +182,62 @@ function draw() {
   }
 }
 
+function getAnimatedRedPulseColor(timeScale: number = 0.1): p5.Color {
+  push();
+  colorMode(HSB);
+  const redHue = hue(redColor);
+  const redSat = saturation(redColor);
+  const redBaseBright = brightness(redColor);
+  const redMinBright = 0.2;
+  const normalizedSin = (sin(frameCount * timeScale) / 2) + 0.5;
+  const redCurrentBright = lerp(redBaseBright, redMinBright, normalizedSin);
+  const ret = color(redHue, redSat, redCurrentBright);
+  pop();
+  return ret;
+}
+
 function drawStart() {
   // Draw splash screen
   push();
-  background(backgroundColor);
+  background(darkBlueColor);
 
+  colorMode(HSB);
   strokeWeight(3);
-  textSize(40);
+
   const heightOffset = 30;
   const jiggleScale = 8;
-  let xJiggle = jiggleScale * noise(0.075 * frameCount);
-  let yJiggle = jiggleScale * noise(0.075 * frameCount + 10000);
-  text('Triple Click Hero', (width / 2) + xJiggle, (height / 2) - heightOffset + yJiggle);
+  const redPulseColor = getAnimatedRedPulseColor();
+  stroke(redPulseColor);
+  fill(creamColor);
 
-  textSize(24);
-  text('Click to begin', width / 2, (height / 2) + heightOffset);
-  pop();
+  // Draw title
+  {
+    let xJiggle = jiggleScale * noise(0.075 * frameCount);
+    let yJiggle = jiggleScale * noise(0.075 * frameCount + 10000);
+    textSize(40);
+    text('Triple Click Hero', (width / 2) + xJiggle, (height / 2) - heightOffset + yJiggle);
+  }
+
+
+  // Draw CTA
+  {
+    let xJiggle = jiggleScale * noise(0.075 * frameCount + 5000);
+    let yJiggle = jiggleScale * noise(0.075 * frameCount + 15000);
+    textSize(24);
+    text('Single Click to Begin', (width / 2) + yJiggle, (height / 2) + heightOffset + xJiggle);
+    pop();
+  }
 }
 
 function drawWrapup() {
   // Draw wrapup screen
   push();
-  background(backgroundColor);
+  background(darkBlueColor);
+  textFont(metalManiaFont);
 
   strokeWeight(3);
+  const redPulseColor = getAnimatedRedPulseColor(0.05);
+  fill(redPulseColor);
   textSize(40);
   const heightOffset = 30;
   text('You Win!', width / 2, (height / 2) - heightOffset);
@@ -219,6 +255,7 @@ function drawGameMode() {
   }
 
   background(backgroundColor);
+  textFont('Arial');
 
   // draw fft
   push();
