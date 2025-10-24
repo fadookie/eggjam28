@@ -389,13 +389,14 @@ function handleMusicTrack() {
     });
   }
 
+  const maxEventDistanceS = 0.5;
+  const thresholdMessageColors = [color('#10f385ff'), color('#69c964ff'), color('#fffb00ff'), color('#f1ad5fff'), color('#f46964ff')] as const;
+  const getDistance = (evt: MusicEventRuntimeData): number => currentTimeS - evt.musicEvent.timeS;
+
   // process click inputs
   if (mouseIsPressed && !mouseWasPressedLastFrame) {
     // console.log("mouse press detected");
     // find nearest previous and next events
-    const maxEventDistanceS = 0.5;
-
-    const getDistance = (evt: MusicEventRuntimeData): number => currentTimeS - evt.musicEvent.timeS;
 
     const isValidEvent = (evt: MusicEventRuntimeData) => 
       isClickEvent(evt.musicEvent)
@@ -416,8 +417,6 @@ function handleMusicTrack() {
     type ThresholdResult = Pick<DistanceResult, 'thresholdLabel' | 'thresholdScore' | 'threshold' | 'thresholdMessage' | 'thresholdMessageColor'>;
 
     const getThreshold = (distanceS: number): ThresholdResult => {
-      const thresholdMessageColors = [color('#10f385ff'), color('#69c964ff'), color('#fffb00ff'), color('#f1ad5fff'), color('#f46964ff')] as const;
-
       for(let i = 0; i < thresholdsS.length; ++i) {
         const thresholdLabel = thresholdLabels[i];
         const thresholdScore = thresholdScores[i];
@@ -474,6 +473,26 @@ function handleMusicTrack() {
     } catch (e) {
       // console.error(e);
     }
+  }
+
+  // check for completely missed events
+  {
+    const missedEvents = musicEventRuntimeData.filter(evt =>
+      evt.pressTimeS === undefined
+      && getDistance(evt) > maxEventDistanceS);
+
+    missedEvents.forEach((evt, index) => {
+      evt.pressTimeS = currentTimeS,
+      evt.distanceResult = {
+        distance: Number.NaN,
+        nearestEventIdx: index,
+        thresholdLabel: thresholdLabels[missIndex],
+        thresholdScore: thresholdScores[missIndex],
+        threshold: thresholdsS[missIndex],
+        thresholdMessage: thresholdMessages[missIndex],
+        thresholdMessageColor: thresholdMessageColors[missIndex],
+      };
+    });
   }
 
   mouseWasPressedLastFrame = mouseIsPressed;
@@ -552,14 +571,16 @@ function handleMusicTrack() {
       // console.log(`elapsedTimeSincePressS: ${elapsedTimeSincePressS} currentTime:${currentTimeS} pressTimeS:${musicEvent.pressTimeS}`);
       push();
 
-      // draw pulse
-      const pulseRadiusEnd = circleMaxRadius + 50;
-      const pulseRadius = lerp(circleMaxRadius, pulseRadiusEnd, tweenPercentage);
-      const basePulseColor = creamColor;
-      const pulseAlpha = 0.5 - tweenPercentage;
-      const pulseColor = color(red(basePulseColor), green(basePulseColor), blue(basePulseColor), pulseAlpha);
-      fill(pulseColor);
-      circle(cursorX, cursorY, pulseRadius);
+      if (musicEvent.distanceResult.thresholdLabel !== 'MISS') {
+        // draw pulse
+        const pulseRadiusEnd = circleMaxRadius + 50;
+        const pulseRadius = lerp(circleMaxRadius, pulseRadiusEnd, tweenPercentage);
+        const basePulseColor = creamColor;
+        const pulseAlpha = 0.5 - tweenPercentage;
+        const pulseColor = color(red(basePulseColor), green(basePulseColor), blue(basePulseColor), pulseAlpha);
+        fill(pulseColor);
+        circle(cursorX, cursorY, pulseRadius);
+      }
 
       // draw floating text
       const textString = musicEvent.distanceResult.thresholdMessage;
