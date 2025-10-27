@@ -1,7 +1,15 @@
 import type * as p5 from "p5";
 
 const canvasSize = 800;
-const defaultStrokeWeight = 15;
+const graphicsScaleFactor = 0.1;
+const defaultStrokeWeight = 1;
+
+let graphics: p5.Graphics;
+
+let traceMode = true;
+let snapToPixel = true;
+
+let backgroundColor: p5.Color;
 
 function preload() {
 }
@@ -9,20 +17,42 @@ function preload() {
 function setup() {
   createCanvas(canvasSize, canvasSize);
 
+  const graphicsSize = canvasSize * graphicsScaleFactor;
+  graphics = createGraphics(graphicsSize, graphicsSize);
+
   resetSketch();
 }
 
 function resetSketch() {
-  colorMode(RGB, 1);
-  imageMode(CENTER);
-  rectMode(CENTER);
-  ellipseMode(RADIUS);
-  textAlign(CENTER);
+  noSmooth();
 
-  strokeWeight(defaultStrokeWeight);
+  backgroundColor = color(0.75);
+  // Even in trace mode, blank the background once
+  graphics.background(backgroundColor);
+
+  graphics.colorMode(RGB, 1);
+  graphics.imageMode(CENTER);
+  graphics.rectMode(CORNER);
+  graphics.ellipseMode(RADIUS);
+  graphics.textAlign(CENTER);
+  graphics.noSmooth();
+
+  // graphics.strokeWeight(defaultStrokeWeight);
+  graphics.noStroke();
+}
+
+function scaleToGraphicsSize(value: number): number {
+  const scaledValue = value * graphicsScaleFactor;
+  const ret = snapToPixel ? Math.round(scaledValue) : scaledValue;
+  return ret;
 }
 
 function draw() {
+  if (!traceMode) {
+    graphics.background(backgroundColor);
+  }
+  graphics.rect(scaleToGraphicsSize(mouseX), scaleToGraphicsSize(mouseY), 2, 1);
+  image(graphics, 0, 0, canvasSize, canvasSize);
 }
 
 function mapOptional<T, Result>(f: (arg0: T) => Result, x: T | undefined): Result | undefined;
@@ -42,5 +72,9 @@ function keyPressed() {
     // reset sketch
     console.log('reset sketch');
     resetSketch();
+  } else if (key === 's') {
+    snapToPixel = !snapToPixel;
+  } else if (key === 't') {
+    traceMode = !traceMode;
   }
 }
