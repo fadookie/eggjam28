@@ -26,9 +26,8 @@ function setup() {
 function resetSketch() {
   noSmooth();
 
-  backgroundColor = color(0.75);
-  // Even in trace mode, blank the background once
-  graphics.background(backgroundColor);
+  colorMode(RGB, 1);
+  backgroundColor = color(0.75, 1);
 
   graphics.colorMode(RGB, 1);
   graphics.imageMode(CENTER);
@@ -39,6 +38,9 @@ function resetSketch() {
 
   // graphics.strokeWeight(defaultStrokeWeight);
   graphics.noStroke();
+
+  // Even in trace mode, blank the background once
+  graphics.background(backgroundColor);
 }
 
 function scaleToGraphicsSize(value: number): number {
