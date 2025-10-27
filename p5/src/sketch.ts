@@ -6,10 +6,15 @@ const defaultStrokeWeight = 1;
 
 let graphics: p5.Graphics;
 
-let traceMode = true;
 let snapToPixel = true;
-
+let traceMode = true;
+let alwaysDraw = false;
+let colorCycle = true;
+let sizeCycle = true;
+var drawOutline = false;
 let backgroundColor: p5.Color;
+let brushSize = 1;
+let hue = 0;
 
 function preload() {
 }
@@ -26,10 +31,10 @@ function setup() {
 function resetSketch() {
   noSmooth();
 
-  colorMode(RGB, 1);
+  colorMode(HSB, 1);
   backgroundColor = color(0.75, 1);
 
-  graphics.colorMode(RGB, 1);
+  graphics.colorMode(HSB, 1);
   graphics.imageMode(CENTER);
   graphics.rectMode(CORNER);
   graphics.ellipseMode(RADIUS);
@@ -53,7 +58,29 @@ function draw() {
   if (!traceMode) {
     graphics.background(backgroundColor);
   }
-  graphics.rect(scaleToGraphicsSize(mouseX), scaleToGraphicsSize(mouseY), 2, 1);
+
+  if (drawOutline) {
+    graphics.stroke('black');
+  } else {
+    graphics.noStroke();
+  }
+  if (colorCycle) {
+     hue = (millis() * 0.0001 ) % 1; 
+  }
+  // background(hue, 1,1);
+  graphics.fill(hue, 1, 1);
+  if (sizeCycle) {
+     brushSize = (sin(millis() / 1000) * 4) + 5; 
+  }
+  if (alwaysDraw || mouseIsPressed) {
+    // Draw brush
+    graphics.ellipse(scaleToGraphicsSize(mouseX), scaleToGraphicsSize(mouseY), brushSize, brushSize);
+  }
+
+  // Test brush
+  // graphics.rect(scaleToGraphicsSize(mouseX), scaleToGraphicsSize(mouseY), 2, 1);
+
+  // Draw graphics to main canvas, scaled up
   image(graphics, 0, 0, canvasSize, canvasSize);
 }
 
@@ -74,9 +101,65 @@ function keyPressed() {
     // reset sketch
     console.log('reset sketch');
     resetSketch();
-  } else if (key === 's') {
+  } else if (key === 'p') {
     snapToPixel = !snapToPixel;
+  } else if (key === 'c') {
+    colorCycle = !colorCycle;
+  } else if (key === 's') {
+    sizeCycle = !sizeCycle;
+  } else if (key === 'o') {
+    drawOutline = !drawOutline;
+  } else if (key === 'a') {
+    alwaysDraw = !alwaysDraw;
   } else if (key === 't') {
     traceMode = !traceMode;
+  } else if (key === 'w') {
+    saveCanvas(`worse-artist_${Date.now()}.png`);
   }
+}
+
+function mouseWheel(event: { delta: number }): boolean {
+  // print(event.delta);
+  if (keyIsDown(CONTROL)) {
+    // Change brush size
+    brushSize += event.delta * 0.01;
+    brushSize = min(brushSize, 1);
+    // console.log(`size change event.delta:${event.delta} scaled:${event.delta * 0.1} brushSize:${brushSize}`);
+  } else {
+    // Change hue
+    const sizeDelta = event.delta * 0.001; // event.delta >=0 ? 0.01 : -0.01;
+    const newHue = wrap(1, hue + sizeDelta);
+    // console.log(`hue change event.delta:${event.delta} sizeDelta:${sizeDelta} hue:${hue} newHue:${newHue}`);
+    hue = newHue;
+  }
+  //uncomment to block page scrolling
+  return false;
+}
+
+// Wrap function which handles negative numbers correctly
+function wrap(m: number, n: number): number {
+  /*
+  MIT License
+
+Copyright (c) 2017 Brandon Semilla
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+  */
+  return n >= 0 ? n % m : (n % m + m) % m
 }
