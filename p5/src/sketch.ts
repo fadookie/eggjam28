@@ -134,29 +134,69 @@ function reversePixels() {
 function mouseClicked() {
 }
 
+enum KeyConf {
+  ResetSketch = 'r',
+  SnapToPixel = 'p',
+  ColorCycle = 'c',
+  SizeCycle = 's',
+  DrawOutline = 'o',
+  AlwaysDraw = 'a',
+  TraceMode = 't',
+  SaveCanvas = 'w',
+  PixelSort = 'z',
+  ReversePixels = 'v',
+}
+
 function keyPressed() {
-  if (key === 'r') {
-    // reset sketch
-    console.log('reset sketch');
-    resetSketch();
-  } else if (key === 'p') {
-    snapToPixel = !snapToPixel;
-  } else if (key === 'c') {
-    colorCycle = !colorCycle;
-  } else if (key === 's') {
-    sizeCycle = !sizeCycle;
-  } else if (key === 'o') {
-    drawOutline = !drawOutline;
-  } else if (key === 'a') {
-    alwaysDraw = !alwaysDraw;
-  } else if (key === 't') {
-    traceMode = !traceMode;
-  } else if (key === 'w') {
-    saveCanvas(`worse-artist_${Date.now()}.png`);
-  } else if (key === 'z') {
-    pixelSort();
-  } else if (key === 'v') {
-    reversePixels();
+  const keyConf = key as KeyConf;
+
+  // For now, bail on unknown keybinds
+  if (!Object.values(KeyConf).includes(keyConf)) return;
+
+  switch(keyConf) {
+    case KeyConf.ResetSketch: {
+      console.log('reset sketch');
+      resetSketch();
+      break;
+    }
+    case KeyConf.SnapToPixel: {
+      snapToPixel = !snapToPixel;
+      break;
+    }
+    case KeyConf.ColorCycle: {
+      colorCycle = !colorCycle;
+      break;
+    }
+    case KeyConf.SizeCycle: {
+      sizeCycle = !sizeCycle;
+      break;
+    }
+    case KeyConf.DrawOutline: {
+      drawOutline = !drawOutline;
+      break;
+    }
+    case KeyConf.AlwaysDraw: {
+      alwaysDraw = !alwaysDraw;
+      break;
+    }
+    case KeyConf.TraceMode: {
+      traceMode = !traceMode;
+      break;
+    }
+    case KeyConf.SaveCanvas: {
+      saveCanvas(`worse-artist_${Date.now()}.png`);
+      break;
+    }
+    case KeyConf.PixelSort: {
+      pixelSort();
+      break;
+    }
+    case KeyConf.ReversePixels: {
+      reversePixels();
+      break;
+    }
+    default:
+      throw keyConf satisfies never;
   }
 }
 
