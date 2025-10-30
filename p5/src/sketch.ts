@@ -108,21 +108,27 @@ function chunkArray<T>(inputArray: T[], perChunk: number): T[][] {
   return result;
 }
 
+/**
+ * Tool: sort pixels by brightness
+ */
 function pixelSort() {
-  console.log('pixelSort 1');
   g.loadPixels();
   // Pixels array is sequential sets of 4 integers for RGBA respectively. Split into 2D array of chunks.
   const pixelsChunked = chunkArray(g.pixels, 4);
   // Sort pixels by brightness
   pixelsChunked.sort((pixelA, pixelB) => brightness(pixelA) - brightness(pixelB));
   // pixelsChunked.reverse();
-  // g.pixels.length = 0;
-  // pixels is actually an Uint8ClampedArray but is typed incorrectly as number[] here
   (g.pixels as unknown as Uint8ClampedArray).set(new Uint8ClampedArray(pixelsChunked.flat()));
-  //(g.pixels as unknown as ArrayBuffer).set(pixelsChunked.flat());
-  // g.pixels.reverse();
   g.updatePixels();
-  console.log('pixelSort END');
+}
+
+/**
+ * Tool: reverse pixel positions and RGBA channels
+ */
+function reversePixels() {
+  g.loadPixels();
+  g.pixels.reverse();
+  g.updatePixels();
 }
 
 function mouseClicked() {
@@ -149,6 +155,8 @@ function keyPressed() {
     saveCanvas(`worse-artist_${Date.now()}.png`);
   } else if (key === 'z') {
     pixelSort();
+  } else if (key === 'v') {
+    reversePixels();
   }
 }
 
