@@ -14,7 +14,7 @@ let sizeCycle = true;
 var drawOutline = false;
 let backgroundColor: p5.Color;
 let brushSize = 1;
-let hue = 0;
+let currentHue = 0;
 
 function preload() {
 }
@@ -65,10 +65,10 @@ function draw() {
     g.noStroke();
   }
   if (colorCycle) {
-     hue = (millis() * 0.0001 ) % 1; 
+     currentHue = (millis() * 0.0001 ) % 1; 
   }
   // background(hue, 1,1);
-  g.fill(hue, 1, 1);
+  g.fill(currentHue, 1, 1);
   if (sizeCycle) {
      brushSize = (sin(millis() / 1000) * 4) + 5; 
   }
@@ -108,6 +108,45 @@ function chunkArray<T>(inputArray: T[], perChunk: number): T[][] {
   return result;
 }
 
+
+/**
+ * Tool: Shift hue of all pixels
+ */
+function hueShift() {
+  g.loadPixels();
+  /* TODO: make this its own tool with variable step
+  for (let i = 0; i < g.pixels.length; i += 3) {
+    g.pixels[i] = 128;
+  }
+  */
+  push();
+  for (let i = 0; i < g.pixels.length; i += 4) {
+    const rd = g.pixels[i];
+    const gr = g.pixels[i + 1];
+    const bl = g.pixels[i + 2];
+    const al = g.pixels[i + 3];
+    if (rd === undefined || gr === undefined || bl === undefined || al === undefined) continue;
+
+    colorMode(RGB, 255);
+    const c = color(rd, gr, bl, al);
+
+    colorMode(HSB, 1);
+    let h = hue(c);
+    const s = saturation(c);
+    const b = brightness(c);
+    const a = alpha(c);
+    h = wrap(1, h + 0.1);
+    const c2 = color(h, s, b, a);
+
+    g.pixels[i] = red(c2);
+    g.pixels[i + 1] = green(c2);
+    g.pixels[i + 2] = blue(c2);
+    g.pixels[i + 3] = alpha(c2);
+  }
+  pop();
+  g.updatePixels();
+}
+
 /**
  * Tool: sort pixels by brightness
  */
@@ -135,6 +174,7 @@ function mouseClicked() {
 }
 
 enum KeyConf {
+  SaveCanvas = 'w',
   ResetSketch = 'r',
   SnapToPixel = 'p',
   ColorCycle = 'c',
@@ -142,7 +182,7 @@ enum KeyConf {
   DrawOutline = 'o',
   AlwaysDraw = 'a',
   TraceMode = 't',
-  SaveCanvas = 'w',
+  HueShift = 'h',
   PixelSort = 'z',
   ReversePixels = 'v',
 }
@@ -154,6 +194,10 @@ function keyPressed() {
   if (!Object.values(KeyConf).includes(keyConf)) return;
 
   switch(keyConf) {
+    case KeyConf.SaveCanvas: {
+      saveCanvas(`worse-artist_${Date.now()}.png`);
+      break;
+    }
     case KeyConf.ResetSketch: {
       console.log('reset sketch');
       resetSketch();
@@ -183,8 +227,8 @@ function keyPressed() {
       traceMode = !traceMode;
       break;
     }
-    case KeyConf.SaveCanvas: {
-      saveCanvas(`worse-artist_${Date.now()}.png`);
+    case KeyConf.HueShift: {
+      hueShift();
       break;
     }
     case KeyConf.PixelSort: {
@@ -210,9 +254,9 @@ function mouseWheel(event: { delta: number }): boolean {
   } else {
     // Change hue
     const sizeDelta = event.delta * 0.001; // event.delta >=0 ? 0.01 : -0.01;
-    const newHue = wrap(1, hue + sizeDelta);
+    const newHue = wrap(1, currentHue + sizeDelta);
     // console.log(`hue change event.delta:${event.delta} sizeDelta:${sizeDelta} hue:${hue} newHue:${newHue}`);
-    hue = newHue;
+    currentHue = newHue;
   }
   //uncomment to block page scrolling
   return false;
