@@ -4,7 +4,7 @@ const canvasSize = 800;
 const graphicsScaleFactor = 0.1;
 const defaultStrokeWeight = 1;
 
-let graphics: p5.Graphics;
+let g: p5.Graphics;
 
 let snapToPixel = true;
 let traceMode = true;
@@ -23,7 +23,7 @@ function setup() {
   createCanvas(canvasSize, canvasSize);
 
   const graphicsSize = canvasSize * graphicsScaleFactor;
-  graphics = createGraphics(graphicsSize, graphicsSize);
+  g = createGraphics(graphicsSize, graphicsSize);
 
   resetSketch();
 }
@@ -34,18 +34,18 @@ function resetSketch() {
   colorMode(HSB, 1);
   backgroundColor = color(0.75, 1);
 
-  graphics.colorMode(HSB, 1);
-  graphics.imageMode(CENTER);
-  graphics.rectMode(CORNER);
-  graphics.ellipseMode(RADIUS);
-  graphics.textAlign(CENTER);
-  graphics.noSmooth();
+  g.colorMode(HSB, 1);
+  g.imageMode(CENTER);
+  g.rectMode(CORNER);
+  g.ellipseMode(RADIUS);
+  g.textAlign(CENTER);
+  g.noSmooth();
 
   // graphics.strokeWeight(defaultStrokeWeight);
-  graphics.noStroke();
+  g.noStroke();
 
   // Even in trace mode, blank the background once
-  graphics.background(backgroundColor);
+  g.background(backgroundColor);
 }
 
 function scaleToGraphicsSize(value: number): number {
@@ -56,32 +56,32 @@ function scaleToGraphicsSize(value: number): number {
 
 function draw() {
   if (!traceMode) {
-    graphics.background(backgroundColor);
+    g.background(backgroundColor);
   }
 
   if (drawOutline) {
-    graphics.stroke('black');
+    g.stroke('black');
   } else {
-    graphics.noStroke();
+    g.noStroke();
   }
   if (colorCycle) {
      hue = (millis() * 0.0001 ) % 1; 
   }
   // background(hue, 1,1);
-  graphics.fill(hue, 1, 1);
+  g.fill(hue, 1, 1);
   if (sizeCycle) {
      brushSize = (sin(millis() / 1000) * 4) + 5; 
   }
   if (alwaysDraw || mouseIsPressed) {
     // Draw brush
-    graphics.ellipse(scaleToGraphicsSize(mouseX), scaleToGraphicsSize(mouseY), brushSize, brushSize);
+    g.ellipse(scaleToGraphicsSize(mouseX), scaleToGraphicsSize(mouseY), brushSize, brushSize);
   }
 
   // Test brush
   // graphics.rect(scaleToGraphicsSize(mouseX), scaleToGraphicsSize(mouseY), 2, 1);
 
   // Draw graphics to main canvas, scaled up
-  image(graphics, 0, 0, canvasSize, canvasSize);
+  image(g, 0, 0, canvasSize, canvasSize);
 }
 
 function mapOptional<T, Result>(f: (arg0: T) => Result, x: T | undefined): Result | undefined;
@@ -91,6 +91,38 @@ function mapOptional<T, U, Result>(f: (arg0: T, arg1: U) => Result, x: T | undef
 function mapOptional(f: (...a: unknown[]) => unknown, ...args: unknown[]): unknown {
   if (args.some(x => x === undefined)) return undefined;
   return f(...args);
+}
+
+function chunkArray<T>(inputArray: T[], perChunk: number): T[][] {
+  const result = inputArray.reduce((resultArray: T[][], item, index) => { 
+    const chunkIndex = Math.floor(index / perChunk);
+
+    if(!resultArray[chunkIndex]) {
+      resultArray[chunkIndex] = [] // start a new chunk
+    }
+
+    resultArray[chunkIndex].push(item)
+
+    return resultArray
+  }, [])
+  return result;
+}
+
+function pixelSort() {
+  console.log('pixelSort 1');
+  g.loadPixels();
+  // Pixels array is sequential sets of 4 integers for RGBA respectively. Split into 2D array of chunks.
+  const pixelsChunked = chunkArray(g.pixels, 4);
+  // Sort pixels by brightness
+  pixelsChunked.sort((pixelA, pixelB) => brightness(pixelA) - brightness(pixelB));
+  // pixelsChunked.reverse();
+  // g.pixels.length = 0;
+  // pixels is actually an Uint8ClampedArray but is typed incorrectly as number[] here
+  (g.pixels as unknown as Uint8ClampedArray).set(new Uint8ClampedArray(pixelsChunked.flat()));
+  //(g.pixels as unknown as ArrayBuffer).set(pixelsChunked.flat());
+  // g.pixels.reverse();
+  g.updatePixels();
+  console.log('pixelSort END');
 }
 
 function mouseClicked() {
@@ -115,6 +147,8 @@ function keyPressed() {
     traceMode = !traceMode;
   } else if (key === 'w') {
     saveCanvas(`worse-artist_${Date.now()}.png`);
+  } else if (key === 'z') {
+    pixelSort();
   }
 }
 
