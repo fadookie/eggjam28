@@ -2,7 +2,7 @@ import type * as p5 from "p5";
 
 const canvasSize = 800;
 const graphicsScaleFactor = 0.1;
-const defaultStrokeWeight = 1;
+// const defaultStrokeWeight = 1;
 
 let g: p5.Graphics;
 
@@ -11,14 +11,16 @@ let traceMode = true;
 let alwaysDraw = false;
 let colorCycle = true;
 let sizeCycle = true;
-var drawOutline = false;
+let drawOutline = false;
 let backgroundColor: p5.Color;
 let brushSize = 1;
 let currentHue = 0;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function preload() {
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function setup() {
   createCanvas(canvasSize, canvasSize);
 
@@ -54,6 +56,7 @@ function scaleToGraphicsSize(value: number): number {
   return ret;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function draw() {
   if (!traceMode) {
     g.background(backgroundColor);
@@ -84,6 +87,7 @@ function draw() {
   image(g, 0, 0, canvasSize, canvasSize);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function mapOptional<T, Result>(f: (arg0: T) => Result, x: T | undefined): Result | undefined;
 
 function mapOptional<T, U, Result>(f: (arg0: T, arg1: U) => Result, x: T | undefined, y: U | undefined): Result | undefined;
@@ -217,6 +221,7 @@ function reversePixels() {
   g.updatePixels();
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function mouseClicked() {
 }
 
@@ -236,6 +241,7 @@ enum KeyConf {
   GlitchBands = 'b',
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function keyPressed() {
   const keyConf = key as KeyConf;
 
@@ -301,6 +307,7 @@ function keyPressed() {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function mouseWheel(event: { delta: number }): boolean {
   // print(event.delta);
   if (keyIsDown(CONTROL)) {

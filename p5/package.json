@@ -5,16 +5,20 @@
   "main": "p5.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc",
+    "build": "npm run lint && tsc",
     "build:force": "tsc --noCheck",
     "build:watch": "tsc --watch",
     "build:watch:force": "tsc --watch --noCheck",
-    "tsc": "tsc --noEmit"
+    "tsc": "tsc --noEmit",
+    "lint": "eslint ."
   },
-  "author": "",
+  "author": "Eliot Lash",
   "license": "UNLICENSED",
   "devDependencies": {
+    "@eslint/js": "^9.38.0",
     "@types/p5": "^1.7.6",
-    "typescript": "^5.9.2"
+    "eslint": "^9.38.0",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.46.2"
   }
 }
