@@ -108,17 +108,64 @@ function chunkArray<T>(inputArray: T[], perChunk: number): T[][] {
   return result;
 }
 
+/**
+ * Tool: Glitchy mosiac blend effect I made by accident
+ */
+function mosaicShift() {
+  g.loadPixels();
+  push();
+  for (let i = 0; i < g.pixels.length; i += 4) {
+    const rd = g.pixels[i];
+    const gr = g.pixels[i + 1];
+    const bl = g.pixels[i + 2];
+    const al = g.pixels[i + 3];
+    if (rd === undefined || gr === undefined || bl === undefined || al === undefined) continue;
+
+    colorMode(RGB, 255);
+    const c = color(rd, gr, bl, al);
+
+    colorMode(HSB, 1);
+    let h = hue(c);
+    const s = saturation(c);
+    const b = brightness(c);
+    const a = alpha(c);
+    h = wrap(1, h + 0.1);
+    const c2 = color(h, s, b, a);
+
+    g.pixels[i] = red(c2);
+    g.pixels[i + 1] = green(c2);
+    g.pixels[i + 2] = blue(c2);
+    g.pixels[i + 3] = alpha(c2);
+  }
+  pop();
+  g.updatePixels();
+}
+
+const bands = [3, 5, 6, 7, 8, 9] as const;
+let currentBandIndex = 0;
+/**
+ * Tool: Glitchy band/checkerboard blend effect I made partially by accident
+ */
+function glitchBands() {
+  g.loadPixels();
+  const currentBand = bands[currentBandIndex];
+  if (currentBand === undefined) throw new Error(`Undefined band at index:${currentBandIndex}`);
+  console.log(`glitchBands currentBandIndex:${currentBandIndex} currentBand:${currentBand}`);
+  for (let i = 0; i < g.pixels.length; i += currentBand) {
+    // if (i % 3 === 0) continue; // testing, trying to skip alpha channel
+    g.pixels[i]! = 128;
+  }
+  g.updatePixels();
+  currentBandIndex = (currentBandIndex + 1) % bands.length;
+}
+
 
 /**
  * Tool: Shift hue of all pixels
+ * TODO: Fix this
  */
 function hueShift() {
   g.loadPixels();
-  /* TODO: make this its own tool with variable step
-  for (let i = 0; i < g.pixels.length; i += 3) {
-    g.pixels[i] = 128;
-  }
-  */
   push();
   for (let i = 0; i < g.pixels.length; i += 4) {
     const rd = g.pixels[i];
@@ -185,6 +232,8 @@ enum KeyConf {
   HueShift = 'h',
   PixelSort = 'z',
   ReversePixels = 'v',
+  MoasicShift = 'm',
+  GlitchBands = 'b',
 }
 
 function keyPressed() {
@@ -237,6 +286,14 @@ function keyPressed() {
     }
     case KeyConf.ReversePixels: {
       reversePixels();
+      break;
+    }
+    case KeyConf.MoasicShift: {
+      mosaicShift();
+      break;
+    }
+    case KeyConf.GlitchBands: {
+      glitchBands();
       break;
     }
     default:
