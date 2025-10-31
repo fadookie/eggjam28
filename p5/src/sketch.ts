@@ -16,6 +16,9 @@ let backgroundColor: p5.Color;
 let brushSize = 1;
 let currentHue = 0;
 
+const maxUndoBufferLength = 10; // TODO: increase
+const undoBuffer: p5.Image[] = [];
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function preload() {
 }
@@ -225,9 +228,26 @@ function reversePixels() {
 function mouseClicked() {
 }
 
+function undo() {
+  const restoreImage = undoBuffer.pop();
+  if (restoreImage === undefined) return;
+  g.image(restoreImage, 0, 0);
+}
+
+function saveUndoPoint() {
+  const undoImage = g.get();
+  undoBuffer.push(undoImage);
+
+  // Garbage collect oldest undo frame if needed
+  if (undoBuffer.length > maxUndoBufferLength) {
+    undoBuffer.shift();
+  }
+}
+
 enum KeyConf {
   SaveCanvas = 'w',
   ResetSketch = 'r',
+  Undo = 'u',
   SnapToPixel = 'p',
   ColorCycle = 'c',
   SizeCycle = 's',
@@ -239,6 +259,11 @@ enum KeyConf {
   ReversePixels = 'v',
   MoasicShift = 'm',
   GlitchBands = 'b',
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function mouseReleased() {
+  saveUndoPoint();
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -254,8 +279,13 @@ function keyPressed() {
       break;
     }
     case KeyConf.ResetSketch: {
+      saveUndoPoint();
       console.log('reset sketch');
       resetSketch();
+      break;
+    }
+    case KeyConf.Undo: {
+      undo();
       break;
     }
     case KeyConf.SnapToPixel: {
@@ -283,22 +313,27 @@ function keyPressed() {
       break;
     }
     case KeyConf.HueShift: {
+      saveUndoPoint();
       hueShift();
       break;
     }
     case KeyConf.PixelSort: {
+      saveUndoPoint();
       pixelSort();
       break;
     }
     case KeyConf.ReversePixels: {
+      saveUndoPoint();
       reversePixels();
       break;
     }
     case KeyConf.MoasicShift: {
+      saveUndoPoint();
       mosaicShift();
       break;
     }
     case KeyConf.GlitchBands: {
+      saveUndoPoint();
       glitchBands();
       break;
     }
