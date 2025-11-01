@@ -18,6 +18,8 @@ let currentHue = 0;
 
 const maxUndoBufferLength = 10; // TODO: increase
 const undoBuffer: p5.Image[] = [];
+const redoBuffer: p5.Image[] = [];
+let wasLastUndoStateChangeFromUserInteraction = false;
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function preload() {
@@ -40,7 +42,7 @@ function resetSketch() {
   backgroundColor = color(0.75, 1);
 
   g.colorMode(HSB, 1);
-  g.imageMode(CENTER);
+  g.imageMode(CORNER);
   g.rectMode(CORNER);
   g.ellipseMode(RADIUS);
   g.textAlign(CENTER);
@@ -51,6 +53,8 @@ function resetSketch() {
 
   // Even in trace mode, blank the background once
   g.background(backgroundColor);
+
+  saveUndoPoint();
 }
 
 function scaleToGraphicsSize(value: number): number {
@@ -229,25 +233,61 @@ function mouseClicked() {
 }
 
 function undo() {
-  const restoreImage = undoBuffer.pop();
+  // If the redo buffer is empty and last state change was from user interaction and not an undo/redo operation, the current state of the canvas should match the top undo frame, so pop twice
+  const needsDoubleUndo = wasLastUndoStateChangeFromUserInteraction && redoBuffer.length === 0;
+  const isFirstUndoPoint = undoBuffer.length === 1;
+  console.log(`undo 1. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length} isFirstUndoPoint:${isFirstUndoPoint} wasLastUndoStateChangeFromUserInteraction:${wasLastUndoStateChangeFromUserInteraction} needsDoubleUndo:${needsDoubleUndo}`);
+  function doUndo() {
+    const restoreImage = undoBuffer.pop();
+    if (restoreImage === undefined) return;
+    redoBuffer.push(restoreImage);
+    g.image(restoreImage, 0, 0);
+  }
+  if (isFirstUndoPoint) {
+    // Don't pop this one as we need to always be able to get back to it
+    console.log('first undo point');
+    g.image(undoBuffer[0]!, 0, 0);
+  } else {
+    console.log('do normal undo');
+    doUndo();
+    if (needsDoubleUndo) doUndo();
+  }
+  console.log(`undo END. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length}`);
+  wasLastUndoStateChangeFromUserInteraction = false;
+}
+
+function redo() {
+  if (redoBuffer.length < 1) return;
+  console.log(`redo 1. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length}`);
+  const restoreImage = redoBuffer.pop();
   if (restoreImage === undefined) return;
+  undoBuffer.push(restoreImage);
   g.image(restoreImage, 0, 0);
+  console.log(`redo END. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length}`);
+  wasLastUndoStateChangeFromUserInteraction = false;
 }
 
 function saveUndoPoint() {
+  wasLastUndoStateChangeFromUserInteraction = true;
+  console.log(`save undo point. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length}`);
   const undoImage = g.get();
   undoBuffer.push(undoImage);
 
+  // Clear redo buffer if there are any redo frames
+  redoBuffer.length = 0;
+
   // Garbage collect oldest undo frame if needed
   if (undoBuffer.length > maxUndoBufferLength) {
+    console.log('Garbage collect oldest undo frame');
     undoBuffer.shift();
   }
 }
 
 enum KeyConf {
   SaveCanvas = 'w',
-  ResetSketch = 'r',
+  ResetSketch = 'x', // used to be r
   Undo = 'u',
+  Redo = 'r',
   SnapToPixel = 'p',
   ColorCycle = 'c',
   SizeCycle = 's',
@@ -279,13 +319,17 @@ function keyPressed() {
       break;
     }
     case KeyConf.ResetSketch: {
-      saveUndoPoint();
+      // saveUndoPoint();
       console.log('reset sketch');
       resetSketch();
       break;
     }
     case KeyConf.Undo: {
       undo();
+      break;
+    }
+    case KeyConf.Redo: {
+      redo();
       break;
     }
     case KeyConf.SnapToPixel: {
@@ -313,28 +357,28 @@ function keyPressed() {
       break;
     }
     case KeyConf.HueShift: {
-      saveUndoPoint();
       hueShift();
+      saveUndoPoint();
       break;
     }
     case KeyConf.PixelSort: {
-      saveUndoPoint();
       pixelSort();
+      saveUndoPoint();
       break;
     }
     case KeyConf.ReversePixels: {
-      saveUndoPoint();
       reversePixels();
+      saveUndoPoint();
       break;
     }
     case KeyConf.MoasicShift: {
-      saveUndoPoint();
       mosaicShift();
+      saveUndoPoint();
       break;
     }
     case KeyConf.GlitchBands: {
-      saveUndoPoint();
       glitchBands();
+      saveUndoPoint();
       break;
     }
     default:
