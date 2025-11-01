@@ -3,6 +3,7 @@ import type * as p5 from "p5";
 const canvasSize = 800;
 const graphicsScaleFactor = 0.1;
 // const defaultStrokeWeight = 1;
+const debugLogEnabled = true;
 
 let g: p5.Graphics;
 
@@ -119,10 +120,16 @@ function chunkArray<T>(inputArray: T[], perChunk: number): T[][] {
   return result;
 }
 
+// eslint-disable-next-line no-var
+if (debugLogEnabled) var debugLog = console.log.bind(window.console)
+// eslint-disable-next-line no-var, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+else var debugLog = function(...data: any[]){}
+
 /**
  * Tool: Glitchy mosiac blend effect I made by accident
  */
 function mosaicShift() {
+  debugLog('mosaicShift');
   g.loadPixels();
   push();
   for (let i = 0; i < g.pixels.length; i += 4) {
@@ -158,10 +165,11 @@ let currentBandIndex = 0;
  * Tool: Glitchy band/checkerboard blend effect I made partially by accident
  */
 function glitchBands() {
+  debugLog('glitchBands');
   g.loadPixels();
   const currentBand = bands[currentBandIndex];
   if (currentBand === undefined) throw new Error(`Undefined band at index:${currentBandIndex}`);
-  console.log(`glitchBands currentBandIndex:${currentBandIndex} currentBand:${currentBand}`);
+  debugLog(`glitchBands currentBandIndex:${currentBandIndex} currentBand:${currentBand}`);
   for (let i = 0; i < g.pixels.length; i += currentBand) {
     // if (i % 3 === 0) continue; // testing, trying to skip alpha channel
     g.pixels[i]! = 128;
@@ -176,6 +184,7 @@ function glitchBands() {
  * TODO: Fix this
  */
 function hueShift() {
+  debugLog('hueShift');
   g.loadPixels();
   push();
   for (let i = 0; i < g.pixels.length; i += 4) {
@@ -206,9 +215,55 @@ function hueShift() {
 }
 
 /**
+ * Tool: slice pixels horizontally
+ */
+function pixelSliceH(forward: boolean) {
+  debugLog('pixelSliceH forward:', forward);
+  g.loadPixels();
+  // Pixels array is sequential sets of 4 integers for RGBA respectively. Split into 2D array of chunks.
+  const gDensity = g.pixelDensity();
+  const gWidthPerPixelChunk = g.width * gDensity;
+  const pixelsChunked = chunkArray(g.pixels, 4);
+  const pixelRows = chunkArray(pixelsChunked, gWidthPerPixelChunk);
+  pixelRows.forEach((pixelRow, i) => {
+    const isEven = i % 2 === 0;
+    if (forward && isEven || !forward && !isEven) {
+      const rightmostPixelChunk = pixelRow.pop();
+      if (rightmostPixelChunk === undefined) return;
+      pixelRow.unshift(rightmostPixelChunk);
+    } else {
+      const leftmostPixelChunk = pixelRow.shift();
+      if (leftmostPixelChunk === undefined) return;
+      pixelRow.push(leftmostPixelChunk);
+    }
+  });
+  const resultPixels = pixelRows.flat(2);
+  (g.pixels as unknown as Uint8ClampedArray).set(new Uint8ClampedArray(resultPixels));
+  g.updatePixels();
+}
+
+/**
+ * Tool: slice pixels horizontally
+ */
+function pixelSliceV(forward: boolean) {
+  console.warn('pixelSliceV forward:', forward, ' TODO: Implement');
+  g.loadPixels();
+  // Pixels array is sequential sets of 4 integers for RGBA respectively. Split into 2D array of chunks.
+  const gDensity = g.pixelDensity();
+  const gHeightPerPixelChunk = g.height * gDensity;
+  const pixelsChunked = chunkArray(g.pixels, 4);
+  const pixelColumns = chunkArray(pixelsChunked, gHeightPerPixelChunk);
+  // TODO: Implement - this is harder than horizontal because adjoining vertical columns of pixels are not contiguous in the array
+  const resultPixels = pixelColumns.flat(2);
+  (g.pixels as unknown as Uint8ClampedArray).set(new Uint8ClampedArray(resultPixels));
+  g.updatePixels();
+}
+
+/**
  * Tool: sort pixels by brightness
  */
 function pixelSort() {
+  debugLog('pixelSort');
   g.loadPixels();
   // Pixels array is sequential sets of 4 integers for RGBA respectively. Split into 2D array of chunks.
   const pixelsChunked = chunkArray(g.pixels, 4);
@@ -223,6 +278,7 @@ function pixelSort() {
  * Tool: reverse pixel positions and RGBA channels
  */
 function reversePixels() {
+  debugLog('reversePixels');
   g.loadPixels();
   g.pixels.reverse();
   g.updatePixels();
@@ -236,7 +292,7 @@ function undo() {
   // If the redo buffer is empty and last state change was from user interaction and not an undo/redo operation, the current state of the canvas should match the top undo frame, so pop twice
   const needsDoubleUndo = wasLastUndoStateChangeFromUserInteraction && redoBuffer.length === 0;
   const isFirstUndoPoint = undoBuffer.length === 1;
-  console.log(`undo 1. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length} isFirstUndoPoint:${isFirstUndoPoint} wasLastUndoStateChangeFromUserInteraction:${wasLastUndoStateChangeFromUserInteraction} needsDoubleUndo:${needsDoubleUndo}`);
+  debugLog(`undo 1. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length} isFirstUndoPoint:${isFirstUndoPoint} wasLastUndoStateChangeFromUserInteraction:${wasLastUndoStateChangeFromUserInteraction} needsDoubleUndo:${needsDoubleUndo}`);
   function doUndo() {
     const restoreImage = undoBuffer.pop();
     if (restoreImage === undefined) return;
@@ -245,31 +301,31 @@ function undo() {
   }
   if (isFirstUndoPoint) {
     // Don't pop this one as we need to always be able to get back to it
-    console.log('first undo point');
+    debugLog('first undo point');
     g.image(undoBuffer[0]!, 0, 0);
   } else {
-    console.log('do normal undo');
+    debugLog('do normal undo');
     doUndo();
     if (needsDoubleUndo) doUndo();
   }
-  console.log(`undo END. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length}`);
+  debugLog(`undo END. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length}`);
   wasLastUndoStateChangeFromUserInteraction = false;
 }
 
 function redo() {
   if (redoBuffer.length < 1) return;
-  console.log(`redo 1. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length}`);
+  debugLog(`redo 1. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length}`);
   const restoreImage = redoBuffer.pop();
   if (restoreImage === undefined) return;
   undoBuffer.push(restoreImage);
   g.image(restoreImage, 0, 0);
-  console.log(`redo END. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length}`);
+  debugLog(`redo END. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length}`);
   wasLastUndoStateChangeFromUserInteraction = false;
 }
 
 function saveUndoPoint() {
   wasLastUndoStateChangeFromUserInteraction = true;
-  console.log(`save undo point. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length}`);
+  debugLog(`save undo point. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length}`);
   const undoImage = g.get();
   undoBuffer.push(undoImage);
 
@@ -278,7 +334,7 @@ function saveUndoPoint() {
 
   // Garbage collect oldest undo frame if needed
   if (undoBuffer.length > maxUndoBufferLength) {
-    console.log('Garbage collect oldest undo frame');
+    debugLog('Garbage collect oldest undo frame');
     undoBuffer.shift();
   }
 }
@@ -295,6 +351,10 @@ enum KeyConf {
   AlwaysDraw = 'a',
   TraceMode = 't',
   HueShift = 'h',
+  PixelSliceHF = 'l',
+  PixelSliceHB = 'L',
+  PixelSliceVF = 'k',
+  PixelSliceVB = 'K',
   PixelSort = 'z',
   ReversePixels = 'v',
   MoasicShift = 'm',
@@ -309,6 +369,7 @@ function mouseReleased() {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function keyPressed() {
   const keyConf = key as KeyConf;
+  console.log(`keyPressed: ${key}`);
 
   // For now, bail on unknown keybinds
   if (!Object.values(KeyConf).includes(keyConf)) return;
@@ -320,7 +381,7 @@ function keyPressed() {
     }
     case KeyConf.ResetSketch: {
       // saveUndoPoint();
-      console.log('reset sketch');
+      debugLog('reset sketch');
       resetSketch();
       break;
     }
@@ -361,6 +422,26 @@ function keyPressed() {
       saveUndoPoint();
       break;
     }
+    case KeyConf.PixelSliceHF: {
+      pixelSliceH(true);
+      saveUndoPoint();
+      break;
+    }
+    case KeyConf.PixelSliceHB: {
+      pixelSliceH(false);
+      saveUndoPoint();
+      break;
+    }
+    case KeyConf.PixelSliceVF: {
+      pixelSliceV(true);
+      saveUndoPoint();
+      break;
+    }
+    case KeyConf.PixelSliceVB: {
+      pixelSliceV(false);
+      saveUndoPoint();
+      break;
+    }
     case KeyConf.PixelSort: {
       pixelSort();
       saveUndoPoint();
@@ -393,12 +474,12 @@ function mouseWheel(event: { delta: number }): boolean {
     // Change brush size
     brushSize += event.delta * 0.01;
     brushSize = min(brushSize, 1);
-    // console.log(`size change event.delta:${event.delta} scaled:${event.delta * 0.1} brushSize:${brushSize}`);
+    // debugLog(`size change event.delta:${event.delta} scaled:${event.delta * 0.1} brushSize:${brushSize}`);
   } else {
     // Change hue
     const sizeDelta = event.delta * 0.001; // event.delta >=0 ? 0.01 : -0.01;
     const newHue = wrap(1, currentHue + sizeDelta);
-    // console.log(`hue change event.delta:${event.delta} sizeDelta:${sizeDelta} hue:${hue} newHue:${newHue}`);
+    // debugLog(`hue change event.delta:${event.delta} sizeDelta:${sizeDelta} hue:${hue} newHue:${newHue}`);
     currentHue = newHue;
   }
   //uncomment to block page scrolling
