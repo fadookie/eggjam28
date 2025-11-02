@@ -20,7 +20,6 @@ let currentHue = 0;
 const maxUndoBufferLength = 10; // TODO: increase
 const undoBuffer: p5.Image[] = [];
 const redoBuffer: p5.Image[] = [];
-let wasLastUndoStateChangeFromUserInteraction = false;
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function preload() {
@@ -290,26 +289,28 @@ function mouseClicked() {
 
 function undo() {
   // If the redo buffer is empty and last state change was from user interaction and not an undo/redo operation, the current state of the canvas should match the top undo frame, so pop twice
-  const needsDoubleUndo = wasLastUndoStateChangeFromUserInteraction && redoBuffer.length === 0;
+
   const isFirstUndoPoint = undoBuffer.length === 1;
-  debugLog(`undo 1. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length} isFirstUndoPoint:${isFirstUndoPoint} wasLastUndoStateChangeFromUserInteraction:${wasLastUndoStateChangeFromUserInteraction} needsDoubleUndo:${needsDoubleUndo}`);
-  function doUndo() {
-    const restoreImage = undoBuffer.pop();
-    if (restoreImage === undefined) return;
-    redoBuffer.push(restoreImage);
-    g.image(restoreImage, 0, 0);
+  debugLog(`undo 1. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length} isFirstUndoPoint:${isFirstUndoPoint}`);
+
+  function drawLastUndoImage() {
+    const lastUndoPointImage = undoBuffer[undoBuffer.length - 1];
+    if (lastUndoPointImage === undefined) throw new Error('last undo point was undefined');
+    g.image(lastUndoPointImage, 0, 0);
   }
+
   if (isFirstUndoPoint) {
     // Don't pop this one as we need to always be able to get back to it
     debugLog('first undo point');
-    g.image(undoBuffer[0]!, 0, 0);
+    drawLastUndoImage();
   } else {
     debugLog('do normal undo');
-    doUndo();
-    if (needsDoubleUndo) doUndo();
+    const restoreImage = undoBuffer.pop();
+    if (restoreImage === undefined) return;
+    redoBuffer.push(restoreImage);
+    drawLastUndoImage();
   }
   debugLog(`undo END. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length}`);
-  wasLastUndoStateChangeFromUserInteraction = false;
 }
 
 function redo() {
@@ -320,11 +321,9 @@ function redo() {
   undoBuffer.push(restoreImage);
   g.image(restoreImage, 0, 0);
   debugLog(`redo END. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length}`);
-  wasLastUndoStateChangeFromUserInteraction = false;
 }
 
 function saveUndoPoint() {
-  wasLastUndoStateChangeFromUserInteraction = true;
   debugLog(`save undo point. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length}`);
   const undoImage = g.get();
   undoBuffer.push(undoImage);
