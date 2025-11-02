@@ -242,18 +242,26 @@ function pixelSliceH(forward: boolean) {
 }
 
 /**
- * Tool: slice pixels horizontally
+ * Tool: slice pixels vertically
  */
 function pixelSliceV(forward: boolean) {
   console.warn('pixelSliceV forward:', forward, ' TODO: Implement');
   g.loadPixels();
   // Pixels array is sequential sets of 4 integers for RGBA respectively. Split into 2D array of chunks.
   const gDensity = g.pixelDensity();
-  const gHeightPerPixelChunk = g.height * gDensity;
+  const gWidthPerPixelChunk = g.width * gDensity;
   const pixelsChunked = chunkArray(g.pixels, 4);
-  const pixelColumns = chunkArray(pixelsChunked, gHeightPerPixelChunk);
-  // TODO: Implement - this is harder than horizontal because adjoining vertical columns of pixels are not contiguous in the array
-  const resultPixels = pixelColumns.flat(2);
+  const resultPixelsChunked: number[][] = [];
+  for (let i = 0; i < pixelsChunked.length; ++i) {
+    const column = i % gWidthPerPixelChunk;
+    const evenColumn = column % 2 === 0;
+    const newIndex = ((forward && evenColumn) || (!forward && !evenColumn)
+        ? i - gWidthPerPixelChunk
+        : i + gWidthPerPixelChunk)
+      % pixelsChunked.length;
+    resultPixelsChunked[newIndex] = pixelsChunked[i]!;
+  }
+  const resultPixels = resultPixelsChunked.flat();
   (g.pixels as unknown as Uint8ClampedArray).set(new Uint8ClampedArray(resultPixels));
   g.updatePixels();
 }
