@@ -7,6 +7,11 @@ const debugLogEnabled = true;
 
 let g: p5.Graphics;
 
+const brushes = ['CIRCLE', 'SPRAYCAN'] as const;
+// type Brush = typeof brushes[number];
+
+const defaultBrushIndex = 0;
+let brushIndex = defaultBrushIndex;
 let snapToPixel = true;
 let traceMode = true;
 let alwaysDraw = false;
@@ -36,6 +41,8 @@ function setup() {
 }
 
 function resetSketch() {
+  brushIndex = defaultBrushIndex;
+
   noSmooth();
 
   g.colorMode(HSB, 1);
@@ -77,13 +84,35 @@ function draw() {
      currentHue = (millis() * 0.0001 ) % 1; 
   }
   // background(hue, 1,1);
-  g.fill(currentHue, 1, 1);
   if (sizeCycle) {
      brushSize = (sin(millis() / 1000) * 4) + 5; 
   }
   if (alwaysDraw || mouseIsPressed) {
     // Draw brush
-    g.ellipse(scaleToGraphicsSize(mouseX), scaleToGraphicsSize(mouseY), brushSize, brushSize);
+    const brush = brushes[brushIndex];
+    if (brush === undefined) throw new Error(`Unexpected brush index ${brushIndex}`);
+    switch (brush) {
+      case 'CIRCLE': {
+        g.fill(currentHue, 1, 1);
+        g.circle(scaleToGraphicsSize(mouseX), scaleToGraphicsSize(mouseY), brushSize);
+        // g.point(scaleToGraphicsSize(mouseX), scaleToGraphicsSize(mouseY));
+        break;
+      }
+      case 'SPRAYCAN': {
+        g.stroke(currentHue, 1, 1);
+        const halfBrushSize = brushSize / 2;
+        const numPoints = brushSize / 4;
+        for (let i = 0; i < numPoints; ++i) {
+          const x = random(mouseX - halfBrushSize, mouseX + halfBrushSize); 
+          const y = random(mouseY - halfBrushSize, mouseY + halfBrushSize); 
+          debugLog(`spraycan point mouseX:${mouseX} mouseY:${mouseY} brushSize:${brushSize} hbs:${halfBrushSize} numPoints:${numPoints} x:${x} y:${y}`);
+          g.point(scaleToGraphicsSize(x), scaleToGraphicsSize(y));
+        }
+        break;
+      }
+      default:
+        brush satisfies never;
+    }
   }
 
   // Test brush
@@ -222,7 +251,7 @@ function hueShift(forward: boolean, hsbGlitch: boolean) {
     g.pixels[i + 2] = nb;
     g.pixels[i + 3] = na;
     
-    if (i === 0) debugLog(`first pixel hue shift: rd:${rd}, gr:${gr}, bl:${bl}, al:${al}, h[init]:${g.hue(c)} h:${h}, s:${s}, b:${b} l:${l}, a:${a}, nr:${nr}, ng:${ng}, nb:${nb}, na:${na}`);
+    // if (i === 0) debugLog(`first pixel hue shift: rd:${rd}, gr:${gr}, bl:${bl}, al:${al}, h[init]:${g.hue(c)} h:${h}, s:${s}, b:${b} l:${l}, a:${a}, nr:${nr}, ng:${ng}, nb:${nb}, na:${na}`);
   }
   g.pop();
   g.updatePixels();
@@ -260,7 +289,7 @@ function pixelSliceH(forward: boolean) {
  * Tool: slice pixels vertically
  */
 function pixelSliceV(forward: boolean) {
-  console.warn('pixelSliceV forward:', forward, ' TODO: Implement');
+  console.warn('pixelSliceV forward:', forward);
   g.loadPixels();
   // Pixels array is sequential sets of 4 integers for RGBA respectively. Split into 2D array of chunks.
   const gDensity = g.pixelDensity();
@@ -324,16 +353,16 @@ function undo() {
 
   if (isFirstUndoPoint) {
     // Don't pop this one as we need to always be able to get back to it
-    debugLog('first undo point');
+    // debugLog('first undo point');
     drawLastUndoImage();
   } else {
-    debugLog('do normal undo');
+    // debugLog('do normal undo');
     const restoreImage = undoBuffer.pop();
     if (restoreImage === undefined) return;
     redoBuffer.push(restoreImage);
     drawLastUndoImage();
   }
-  debugLog(`undo END. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length}`);
+  // debugLog(`undo END. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length}`);
 }
 
 function redo() {
@@ -343,11 +372,11 @@ function redo() {
   if (restoreImage === undefined) return;
   undoBuffer.push(restoreImage);
   g.image(restoreImage, 0, 0);
-  debugLog(`redo END. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length}`);
+  // debugLog(`redo END. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length}`);
 }
 
 function saveUndoPoint() {
-  debugLog(`save undo point. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length}`);
+  // debugLog(`save undo point. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length}`);
   const undoImage = g.get();
   undoBuffer.push(undoImage);
 
@@ -356,7 +385,7 @@ function saveUndoPoint() {
 
   // Garbage collect oldest undo frame if needed
   if (undoBuffer.length > maxUndoBufferLength) {
-    debugLog('Garbage collect oldest undo frame');
+    // debugLog('Garbage collect oldest undo frame');
     undoBuffer.shift();
   }
 }
@@ -366,6 +395,8 @@ enum KeyConf {
   ResetSketch = 'x', // used to be r
   Undo = 'u',
   Redo = 'r',
+  PrevBrush = '[',
+  NextBrush = ']',
   SnapToPixel = 'p',
   ColorCycle = 'c',
   SizeCycle = 's',
@@ -410,6 +441,16 @@ function keyPressed() {
       resetSketch();
       break;
     }
+    case KeyConf.PrevBrush: {
+      brushIndex = wrap(brushes.length, brushIndex - 1);
+      debugLog(`Select prev brush, index:${brushIndex} brush:${brushes[brushIndex]}`);
+      break;
+    }
+    case KeyConf.NextBrush: {
+      brushIndex = wrap(brushes.length, brushIndex + 1);
+      debugLog(`Select next brush, index:${brushIndex} brush:${brushes[brushIndex]}`);
+      break;
+    }
     case KeyConf.Undo: {
       undo();
       break;
@@ -420,6 +461,7 @@ function keyPressed() {
     }
     case KeyConf.SnapToPixel: {
       snapToPixel = !snapToPixel;
+      debugLog(`snapToPixel: ${snapToPixel}`);
       break;
     }
     case KeyConf.ColorCycle: {
