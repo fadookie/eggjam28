@@ -38,10 +38,8 @@ function setup() {
 function resetSketch() {
   noSmooth();
 
-  colorMode(HSB, 1);
-  backgroundColor = color(0.75, 1);
-
   g.colorMode(HSB, 1);
+  backgroundColor = g.color(0.75, 1);
   g.imageMode(CORNER);
   g.rectMode(CORNER);
   g.ellipseMode(RADIUS);
@@ -65,6 +63,7 @@ function scaleToGraphicsSize(value: number): number {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function draw() {
+  g.colorMode(HSB, 1);
   if (!traceMode) {
     g.background(backgroundColor);
   }
@@ -130,7 +129,7 @@ else var debugLog = function(...data: any[]){}
 function mosaicShift() {
   debugLog('mosaicShift');
   g.loadPixels();
-  push();
+  g.push();
   for (let i = 0; i < g.pixels.length; i += 4) {
     const rd = g.pixels[i];
     const gr = g.pixels[i + 1];
@@ -154,7 +153,7 @@ function mosaicShift() {
     g.pixels[i + 2] = blue(c2);
     g.pixels[i + 3] = alpha(c2);
   }
-  pop();
+  g.pop();
   g.updatePixels();
 }
 
@@ -182,10 +181,10 @@ function glitchBands() {
  * Tool: Shift hue of all pixels
  * TODO: Fix this
  */
-function hueShift() {
+function hueShift(forward: boolean, hsbGlitch: boolean) {
   debugLog('hueShift');
   g.loadPixels();
-  push();
+  g.push();
   for (let i = 0; i < g.pixels.length; i += 4) {
     const rd = g.pixels[i];
     const gr = g.pixels[i + 1];
@@ -193,23 +192,39 @@ function hueShift() {
     const al = g.pixels[i + 3];
     if (rd === undefined || gr === undefined || bl === undefined || al === undefined) continue;
 
-    colorMode(RGB, 255);
-    const c = color(rd, gr, bl, al);
+    g.colorMode(RGB, 255);
+    const c = g.color(rd, gr, bl, al);
 
-    colorMode(HSB, 1);
-    let h = hue(c);
-    const s = saturation(c);
-    const b = brightness(c);
-    const a = alpha(c);
-    h = wrap(1, h + 0.1);
-    const c2 = color(h, s, b, a);
+    if (hsbGlitch) {
+      g.colorMode(HSB, 255);
+    } else {
+      g.colorMode(HSL, 255);
+    }
+    let h = g.hue(c);
+    const s = g.saturation(c);
+    const b = g.brightness(c);
+    const l = g.lightness(c);
+    const a = g.alpha(c);
+    const delta = forward ? 5 : -5;
+    h = wrap(255, h + delta);
+    const c2 = hsbGlitch
+      ? g.color(h, 255, b, a)
+      : g.color(h, s, l, a);
 
-    g.pixels[i] = red(c2);
-    g.pixels[i + 1] = green(c2);
-    g.pixels[i + 2] = blue(c2);
-    g.pixels[i + 3] = alpha(c2);
+    g.colorMode(RGB, 255);
+    const nr = g.red(c2);
+    const ng = g.green(c2);
+    const nb = g.blue(c2);
+    const na = g.alpha(c2);
+
+    g.pixels[i] = nr;
+    g.pixels[i + 1] = ng;
+    g.pixels[i + 2] = nb;
+    g.pixels[i + 3] = na;
+    
+    if (i === 0) debugLog(`first pixel hue shift: rd:${rd}, gr:${gr}, bl:${bl}, al:${al}, h[init]:${g.hue(c)} h:${h}, s:${s}, b:${b} l:${l}, a:${a}, nr:${nr}, ng:${ng}, nb:${nb}, na:${na}`);
   }
-  pop();
+  g.pop();
   g.updatePixels();
 }
 
@@ -357,7 +372,10 @@ enum KeyConf {
   DrawOutline = 'o',
   AlwaysDraw = 'a',
   TraceMode = 't',
-  HueShift = 'h',
+  HueShiftF = 'h',
+  HueShiftB = 'H',
+  HueShiftHSBGlitchF = 'j',
+  HueShiftHSBGlitchB = 'J',
   PixelSliceHF = 'l',
   PixelSliceHB = 'L',
   PixelSliceVF = 'k',
@@ -424,8 +442,23 @@ function keyPressed() {
       traceMode = !traceMode;
       break;
     }
-    case KeyConf.HueShift: {
-      hueShift();
+    case KeyConf.HueShiftF: {
+      hueShift(true, false);
+      saveUndoPoint();
+      break;
+    }
+    case KeyConf.HueShiftB: {
+      hueShift(false, false);
+      saveUndoPoint();
+      break;
+    }
+    case KeyConf.HueShiftHSBGlitchF: {
+      hueShift(true, true);
+      saveUndoPoint();
+      break;
+    }
+    case KeyConf.HueShiftHSBGlitchB: {
+      hueShift(false, true);
       saveUndoPoint();
       break;
     }
