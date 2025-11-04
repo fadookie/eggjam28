@@ -2,10 +2,13 @@ import type * as p5 from "p5";
 
 const canvasSize = 800;
 const graphicsScaleFactor = 0.1;
+const graphicsSize = canvasSize * graphicsScaleFactor;
 // const defaultStrokeWeight = 1;
 const debugLogEnabled = true;
 
 let g: p5.Graphics;
+let gSmooth: p5.Graphics;
+let gPixelPerfect: p5.Graphics;
 
 const brushes = ['CIRCLE', 'SPRAYCAN'] as const;
 // type Brush = typeof brushes[number];
@@ -23,6 +26,10 @@ let backgroundColor: p5.Color;
 let brushSize = 1;
 let currentHue = 0;
 
+// type UndoFrame {
+//   image: p5.Image,
+//   smoothGraphics: boolean
+// }
 const maxUndoBufferLength = 10; // TODO: increase
 const undoBuffer: p5.Image[] = [];
 const redoBuffer: p5.Image[] = [];
@@ -35,41 +42,47 @@ function preload() {
 function setup() {
   createCanvas(canvasSize, canvasSize);
 
-  makePixelGraphics();
+  gSmooth = makePixelGraphics();
+  gSmooth.smooth();
+  gPixelPerfect = makePixelGraphics();
+  gPixelPerfect.noSmooth();
+  g = gPixelPerfect;
 
   resetSketch();
 }
 
 function makePixelGraphics(): p5.Graphics {
-  const graphicsSize = canvasSize * graphicsScaleFactor;
-  g = createGraphics(graphicsSize, graphicsSize, WEBGL);
-  g.pixelDensity(1);
-  g.ortho();
+  // g?.remove();
+  const gfx = createGraphics(graphicsSize, graphicsSize, WEBGL);
+  gfx.pixelDensity(1);
+  gfx.ortho();
   // g.scale(1, -1);
-  g.translate(-graphicsSize / 2, -graphicsSize / 2);
-  return g;
+  gfx.translate(-graphicsSize / 2, -graphicsSize / 2);
+  return gfx;
 }
 
 function resetSketch() {
   brushIndex = defaultBrushIndex;
+  colorMode(HSB, 1);
+  backgroundColor = color(0.75, 1);
 
   // Ensure pixels are crisp when rendering graphics g to main canvas
   noSmooth();
 
+  updateSmoothGraphics();
+
   g.colorMode(HSB, 1);
-  backgroundColor = g.color(0.75, 1);
   g.imageMode(CORNER);
   g.rectMode(CORNER);
   g.ellipseMode(RADIUS);
   g.textAlign(CENTER);
 
-  updateSmoothGraphics();
-
   // graphics.strokeWeight(defaultStrokeWeight);
   g.noStroke();
 
   // Even in trace mode, blank the background once
-  g.background(backgroundColor);
+  gSmooth.background(backgroundColor);
+  gPixelPerfect.background(backgroundColor);
 
   /* debug pixel testing
   g.stroke('red')
@@ -83,14 +96,28 @@ function resetSketch() {
   saveUndoPoint();
 }
 
+/**
+ * Switch between smooth (anitialiased) and sharp pixel drawing mode. This will blank the canvas for now due to a bug in p5.js which does not allow the mode updte to take effect in webgl mode.
+ */
 function updateSmoothGraphics() {
-  makePixelGraphics();
-  debugLog(`updateSmoothGraphics smoothGraphics:${smoothGraphics}`);
+  // const prevGraphics = g;
+  // const img = prevGraphics.get();
+  // g.save(`debug_graphics_${+Date.now()}.png`);
+  // makePixelGraphics();
+
+  // g.noSmooth();
+  // g.image(img, 0, 0, graphicsSize, graphicsSize);
+  // img.save(`debug_restoreImg_${+Date.now()}`, 'png');
+  // debugLog(`updateSmoothGraphics smoothGraphics:${smoothGraphics}`);
   if (smoothGraphics) {
-    g.smooth();
+    g = gSmooth;
   } else {
-    g.noSmooth();
+    g = gPixelPerfect;
   }
+
+  g.background(backgroundColor);
+
+  // prevGraphics.remove();
 }
 
 function scaleToGraphicsSize(value: number): number {
@@ -155,6 +182,7 @@ function draw() {
   // graphics.rect(scaleToGraphicsSize(mouseX), scaleToGraphicsSize(mouseY), 2, 1);
 
   // Draw graphics to main canvas, scaled up
+  background('red');
   image(g, 0, 0, canvasSize, canvasSize);
 }
 
@@ -375,6 +403,19 @@ function reversePixels() {
 function mouseClicked() {
 }
 
+function drawRestoreImage(img: p5.Image) {
+  const prevSmoothGraphics = smoothGraphics;
+  if (prevSmoothGraphics === true) {
+    smoothGraphics = false;
+    updateSmoothGraphics();
+  }
+  g.image(img, 0, 0, graphicsSize, graphicsSize);
+  if (prevSmoothGraphics === true) {
+    smoothGraphics = true;
+    updateSmoothGraphics();
+  }
+}
+
 function undo() {
   // If the redo buffer is empty and last state change was from user interaction and not an undo/redo operation, the current state of the canvas should match the top undo frame, so pop twice
 
@@ -384,7 +425,7 @@ function undo() {
   function drawLastUndoImage() {
     const lastUndoPointImage = undoBuffer[undoBuffer.length - 1];
     if (lastUndoPointImage === undefined) throw new Error('last undo point was undefined');
-    g.image(lastUndoPointImage, 0, 0);
+    drawRestoreImage(lastUndoPointImage);
   }
 
   if (isFirstUndoPoint) {
@@ -407,7 +448,7 @@ function redo() {
   const restoreImage = redoBuffer.pop();
   if (restoreImage === undefined) return;
   undoBuffer.push(restoreImage);
-  g.image(restoreImage, 0, 0);
+  drawRestoreImage(restoreImage);
   // debugLog(`redo END. Num undo points = ${undoBuffer.length} Num redo points = ${redoBuffer.length}`);
 }
 
