@@ -11,6 +11,7 @@ const brushes = ['CIRCLE', 'SPRAYCAN'] as const;
 // type Brush = typeof brushes[number];
 
 const defaultBrushIndex = 0;
+let smoothGraphics = false;
 let brushIndex = defaultBrushIndex;
 let snapToPixel = true;
 let traceMode = true;
@@ -34,15 +35,25 @@ function preload() {
 function setup() {
   createCanvas(canvasSize, canvasSize);
 
-  const graphicsSize = canvasSize * graphicsScaleFactor;
-  g = createGraphics(graphicsSize, graphicsSize);
+  makePixelGraphics();
 
   resetSketch();
+}
+
+function makePixelGraphics(): p5.Graphics {
+  const graphicsSize = canvasSize * graphicsScaleFactor;
+  g = createGraphics(graphicsSize, graphicsSize, WEBGL);
+  g.pixelDensity(1);
+  g.ortho();
+  // g.scale(1, -1);
+  g.translate(-graphicsSize / 2, -graphicsSize / 2);
+  return g;
 }
 
 function resetSketch() {
   brushIndex = defaultBrushIndex;
 
+  // Ensure pixels are crisp when rendering graphics g to main canvas
   noSmooth();
 
   g.colorMode(HSB, 1);
@@ -51,7 +62,8 @@ function resetSketch() {
   g.rectMode(CORNER);
   g.ellipseMode(RADIUS);
   g.textAlign(CENTER);
-  g.noSmooth();
+
+  updateSmoothGraphics();
 
   // graphics.strokeWeight(defaultStrokeWeight);
   g.noStroke();
@@ -59,7 +71,26 @@ function resetSketch() {
   // Even in trace mode, blank the background once
   g.background(backgroundColor);
 
+  /* debug pixel testing
+  g.stroke('red')
+  g.strokeWeight(0);
+  for (let i = 0; i < 4; ++i) {
+    // g.square(math.floor(g.width / 2), math.floor(g.height / 2), 1);
+    g.point(Math.floor(g.width / 2) + i, Math.floor(g.height / 2) + i);
+  }
+  */
+
   saveUndoPoint();
+}
+
+function updateSmoothGraphics() {
+  makePixelGraphics();
+  debugLog(`updateSmoothGraphics smoothGraphics:${smoothGraphics}`);
+  if (smoothGraphics) {
+    g.smooth();
+  } else {
+    g.noSmooth();
+  }
 }
 
 function scaleToGraphicsSize(value: number): number {
@@ -99,15 +130,20 @@ function draw() {
         break;
       }
       case 'SPRAYCAN': {
+        g.push();
+        g.strokeWeight(0);
         g.stroke(currentHue, 1, 1);
-        const halfBrushSize = brushSize / 2;
-        const numPoints = brushSize / 4;
+        const sprayCanArea = brushSize * 8;
+        const numPoints = 1;
         for (let i = 0; i < numPoints; ++i) {
-          const x = random(mouseX - halfBrushSize, mouseX + halfBrushSize); 
-          const y = random(mouseY - halfBrushSize, mouseY + halfBrushSize); 
-          debugLog(`spraycan point mouseX:${mouseX} mouseY:${mouseY} brushSize:${brushSize} hbs:${halfBrushSize} numPoints:${numPoints} x:${x} y:${y}`);
-          g.point(scaleToGraphicsSize(x), scaleToGraphicsSize(y));
+          const x = random(mouseX - sprayCanArea, mouseX + sprayCanArea); 
+          const y = random(mouseY - sprayCanArea, mouseY + sprayCanArea); 
+          const xScaled = scaleToGraphicsSize(x);
+          const yScaled = scaleToGraphicsSize(y);
+          // debugLog(`spraycan point mouseX:${mouseX} mouseY:${mouseY} brushSize:${brushSize} hbs:${sprayCanArea} numPoints:${numPoints} x:${x} y:${y} xScaled:${xScaled} yScaled:${yScaled}`);
+          g.point(xScaled, yScaled);
         }
+        g.pop();
         break;
       }
       default:
@@ -397,6 +433,7 @@ enum KeyConf {
   Redo = 'r',
   PrevBrush = '[',
   NextBrush = ']',
+  ToggleSmoothGraphics = 'g',
   SnapToPixel = 'p',
   ColorCycle = 'c',
   SizeCycle = 's',
@@ -457,6 +494,11 @@ function keyPressed() {
     }
     case KeyConf.Redo: {
       redo();
+      break;
+    }
+    case KeyConf.ToggleSmoothGraphics: {
+      smoothGraphics = !smoothGraphics;
+      updateSmoothGraphics();
       break;
     }
     case KeyConf.SnapToPixel: {
