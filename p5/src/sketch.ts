@@ -30,7 +30,7 @@ let currentHue = 0;
 //   image: p5.Image,
 //   smoothGraphics: boolean
 // }
-const maxUndoBufferLength = 10; // TODO: increase
+const maxUndoBufferLength = 100; // TODO: increase
 const undoBuffer: p5.Image[] = [];
 const redoBuffer: p5.Image[] = [];
 
