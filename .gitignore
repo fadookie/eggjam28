@@ -26,4 +26,6 @@ chrome-user-data
 /tmp
 
 /p5/dist
-/itch-dev-build.zip
+/p5/VERSION.txt
+/p5/README.html
+/itch-dev-build*
